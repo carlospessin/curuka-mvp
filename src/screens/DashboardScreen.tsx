@@ -1,0 +1,1236 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+  Switch,
+  ActivityIndicator,
+  Image,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
+import { StatusIndicator } from '../components/StatusIndicator';
+import { ProtectionScoreCircle } from '../components/ProtectionScoreCircle';
+import { PlanBadge } from '../components/PlanBadge';
+import { useApp } from '../context/AppContext';
+import { colors, spacing, borderRadius, shadows } from '../theme/colors';
+import { getAuth } from 'firebase/auth';
+import type { Child } from '../types';
+import { removeChildProfile, saveChildProfile, setChildTagStatus, watchChildrenList } from '../services/pessoa-service.js';
+import { Platform } from 'react-native';
+
+type ChildMedicalInfo = {
+  pcd?: boolean;
+  healthPlans?: string;
+  otherInfo?: string;
+};
+
+type ChildProfile = Child & {
+  ownerId: string;
+  medicalInfo?: ChildMedicalInfo;
+};
+
+type ChildFormData = {
+  photo: string;
+  name: string;
+  age: string;
+  guardians: {
+    name: string;
+    phone: string;
+    whatsapp: boolean;
+  }[];
+  pcd: boolean;
+  healthPlans: string;
+  otherInfo: string;
+};
+
+const createEmptyGuardian = () => ({
+  name: '',
+  phone: '',
+  whatsapp: true,
+});
+
+const EMPTY_CHILD_FORM: ChildFormData = {
+  photo: '',
+  name: '',
+  age: '',
+  guardians: [createEmptyGuardian()],
+  pcd: false,
+  healthPlans: '',
+  otherInfo: '',
+};
+
+export function DashboardScreen() {
+  const navigation = useNavigation<any>();
+  const { state } = useApp();
+  const { children, recentScans, protectionScore, plan } = state;
+  // If the context still contains a legacy sample child we ignore it by
+  // treating an empty array as "no profile". `fallbackChild` is only used
+  // when there really is at least one child stored locally, which shouldn't
+  // happen in production now that initial children starts empty.
+  const fallbackChild = children.length > 0 ? children[0] : null;
+  const lastScan = recentScans[0];
+
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  const [remoteChildren, setRemoteChildren] = useState<ChildProfile[]>([]);
+  const [loadingChild, setLoadingChild] = useState(true);
+  const [savingChild, setSavingChild] = useState(false);
+  const [childModalVisible, setChildModalVisible] = useState(false);
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [medicalInfoExpanded, setMedicalInfoExpanded] = useState(false);
+  const [formData, setFormData] = useState<ChildFormData>(EMPTY_CHILD_FORM);
+
+  const canEditMedicalInfo = plan === 'plus' || plan === 'premium';
+  const canAddMoreGuardians = plan === 'plus' || plan === 'premium';
+
+  const childrenList: ChildProfile[] =
+    remoteChildren.length > 0
+      ? remoteChildren
+      : fallbackChild
+        ? [
+          {
+            ...fallbackChild,
+            ownerId: user?.uid || 'local',
+            slug: (fallbackChild.slug as string) || undefined,
+            medicalInfo: {
+              pcd: false,
+              healthPlans: '',
+              otherInfo: '',
+            },
+          } as ChildProfile,
+        ]
+        : [];
+
+  const hasChildProfile = childrenList.length > 0;
+
+  const child = useMemo(() => {
+    // for convenience we still expose the first child when only one is
+    // needed (eg. toggling tag status)
+    return childrenList[0] || null;
+  }, [childrenList]);
+
+  // dynamic values for protection card: number of children (tags) and guardians
+  const guardianCount = child && Array.isArray(child.guardians) ? child.guardians.length : 0;
+
+  // compute number of tags (children) available. for premium plans the
+  // context array should already hold all profiles; otherwise fall back
+  // to the remote watcher data. this ensures the counter increments as
+  // new kids are added.
+  const tagCount = childrenList.length > 0 ? childrenList.length : children.length;
+  const tagMax = tagCount || 1; // prevent zero in denominator/visual styles
+
+  const dynamicFactors = [
+    {
+      name: 'Tags cadastradas',
+      value: tagCount,
+      max: tagMax,
+    },
+    {
+      name: 'Responsáveis',
+      value: guardianCount,
+      max: state.maxGuardians,
+      locked: false,
+    },
+  ];
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setLoadingChild(false);
+      return;
+    }
+    // subscribe to entire list; updates will replace the array automatically
+    const unsubscribe = watchChildrenList(
+      user.uid,
+      (profiles) => {
+        setRemoteChildren(profiles);
+        setLoadingChild(false);
+      },
+      () => {
+        setLoadingChild(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  const userName = user?.displayName?.split(' ')[0] || 'Responsavel';
+
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `Ha ${diffMins} min`;
+    if (diffHours < 24) return `Ha ${diffHours}h`;
+    return `Ha ${diffDays} dias`;
+  };
+
+  const handleUpgrade = () => {
+    navigation.navigate('Plans');
+  };
+
+  const openCreateModal = () => {
+    setEditingChildId(null);
+    setFormData(EMPTY_CHILD_FORM);
+    setMedicalInfoExpanded(false);
+    setChildModalVisible(true);
+  };
+
+  const openEditModal = (profile: ChildProfile) => {
+    setEditingChildId(profile.id);
+    setFormData({
+      photo: profile.photo || '',
+      name: profile.name || '',
+      age: profile.age ? String(profile.age) : '',
+      guardians:
+        Array.isArray(profile.guardians) && profile.guardians.length > 0
+          ? profile.guardians.map((guardian) => ({
+            name: guardian?.name || '',
+            phone: guardian?.phone || '',
+            whatsapp: Boolean(guardian?.whatsapp),
+          }))
+          : [createEmptyGuardian()],
+      pcd: Boolean(profile.medicalInfo?.pcd),
+      healthPlans: profile.medicalInfo?.healthPlans || '',
+      otherInfo: profile.medicalInfo?.otherInfo || '',
+    });
+    setMedicalInfoExpanded(true);
+    setChildModalVisible(true);
+  };
+
+
+  const handleSaveChildProfile = async () => {
+    if (!user?.uid) {
+      Alert.alert('Erro', 'Usuario nao autenticado.');
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      Alert.alert('Campo obrigatorio', 'Informe o nome da crianca.');
+      return;
+    }
+
+    const parsedAge = Number(formData.age);
+    if (!Number.isFinite(parsedAge) || parsedAge <= 0) {
+      Alert.alert('Campo invalido', 'Informe uma idade valida.');
+      return;
+    }
+
+    const normalizedGuardians = formData.guardians
+      .map((guardian) => ({
+        name: guardian.name.trim(),
+        phone: guardian.phone.trim(),
+        whatsapp: guardian.whatsapp,
+      }))
+      .filter((guardian) => guardian.name || guardian.phone);
+
+    if (normalizedGuardians.length === 0 || !normalizedGuardians[0].name || !normalizedGuardians[0].phone) {
+      Alert.alert('Campo obrigatorio', 'Informe ao menos um responsavel com telefone.');
+      return;
+    }
+
+    const payload = {
+      name: formData.name.trim(),
+      age: parsedAge,
+      photo: formData.photo.trim() || null,
+      tagStatus: child?.tagStatus || 'inactive',
+      guardians: canAddMoreGuardians ? normalizedGuardians : [normalizedGuardians[0]],
+      medicalInfo: canEditMedicalInfo
+        ? {
+          pcd: formData.pcd,
+          healthPlans: formData.healthPlans.trim(),
+          otherInfo: formData.otherInfo.trim(),
+        }
+        : {
+          pcd: false,
+          healthPlans: '',
+          otherInfo: '',
+        },
+    };
+
+    setSavingChild(true);
+
+    try {
+      const docId = await saveChildProfile(user.uid, payload, editingChildId || undefined);
+      // the watcher will pick up the new/updated document automatically,
+      // but we make a defensive update in case the subscription lags.
+      setRemoteChildren((prev) => {
+        const updated = prev.filter((c) => c.id !== docId);
+        return [...updated, { id: docId, ownerId: user.uid, ...payload }];
+      });
+
+      Alert.alert('Sucesso', `Dados da crianca gravados com sucesso (${docId}).`);
+      setChildModalVisible(false);
+      setFormData(EMPTY_CHILD_FORM);
+      setEditingChildId(null);
+    } catch (err: any) {
+      console.error("failed saving child in DashboardScreen", err);
+      Alert.alert(
+        'Erro',
+        `Nao foi possivel gravar os dados da crianca. ${err?.message || ''}`
+      );
+    } finally {
+      setSavingChild(false);
+    }
+  };
+
+  const deleteChildProfile = (childId?: string) => {
+    if (!childId) {
+      Alert.alert('Sem cadastro', 'Nao ha perfil da crianca para excluir.');
+      return;
+    }
+
+    setEditingChildId(childId);
+    setConfirmDeleteVisible(true);
+  };
+
+  const toggleTagStatus = async (childId?: string, currentStatus?: string) => {
+    if (!childId) {
+      Alert.alert('Sem cadastro', 'Cadastre a crianca antes de ativar ou desativar a tag.');
+      return;
+    }
+
+    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
+
+    try {
+      await setChildTagStatus(childId, nextStatus);
+    } catch {
+      Alert.alert('Erro', 'Nao foi possivel atualizar o status da tag.');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Ola, {userName}</Text>
+            <Text style={styles.subtitle}>Protecao ativa para sua familia</Text>
+          </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications-outline" size={24} color={colors.neutral.text.primary} />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
+        </View>
+
+        <Card style={styles.protectionCard}>
+          <View style={styles.protectionHeader}>
+            <View style={styles.protectionInfo}>
+              <StatusIndicator
+                status={protectionScore.score >= 90 ? 'protected' : 'partial'}
+                label={protectionScore.score >= 90 ? 'Protecao Ativa' : 'Protecao Parcial'}
+                size="large"
+              />
+              <Text style={styles.protectionDescription}>
+                {protectionScore.score >= 90
+                  ? 'Sua familia esta bem protegida'
+                  : 'Alguns recursos podem melhorar sua protecao'}
+              </Text>
+            </View>
+            <ProtectionScoreCircle score={protectionScore.score} size={90} />
+          </View>
+
+          {protectionScore.score < 90 && (
+            <Button
+              title="Melhorar Protecao"
+              onPress={handleUpgrade}
+              variant="primary"
+              size="small"
+              style={styles.upgradeButton}
+            />
+          )}
+
+          <View style={styles.scoreFactors}>
+            {dynamicFactors.map((factor, index) => (
+              <View key={index} style={styles.factorItem}>
+                <View style={styles.factorHeader}>
+                  <Text style={styles.factorName}>{factor.name}</Text>
+                  {factor.locked && <Ionicons name="lock-closed" size={10} color={colors.neutral.text.muted} />}
+                </View>
+                <Text style={styles.factorValue}>
+                  {factor.value}/{factor.max}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        <Card
+          title="Ultima Atividade"
+          subtitle="Escaneamento recente"
+          onPress={() => navigation.navigate('History')}
+        >
+          <View style={styles.activityContent}>
+            <View style={styles.activityIcon}>
+              <Ionicons
+                name={lastScan.type === 'normal' ? 'checkmark-circle' : 'warning'}
+                size={24}
+                color={lastScan.type === 'normal' ? colors.status.active : colors.status.warning}
+              />
+            </View>
+            <View style={styles.activityInfo}>
+              <Text style={styles.activityLocation}>{lastScan.location}</Text>
+              <View style={styles.activityMeta}>
+                <Text style={styles.activityTime}>{formatTimeAgo(lastScan.timestamp)}</Text>
+                <StatusIndicator
+                  status={lastScan.type === 'normal' ? 'active' : 'warning'}
+                  label={lastScan.type === 'normal' ? 'Normal' : 'Atencao'}
+                  size="small"
+                />
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
+          </View>
+        </Card>
+
+        <Card title="Perfil da Crianca">
+          {loadingChild ? (
+            <View style={styles.loadingWrapper}>
+              <ActivityIndicator color={colors.primary[600]} />
+              <Text style={styles.loadingText}>Carregando perfil...</Text>
+            </View>
+          ) : hasChildProfile ? (
+            childrenList.map((c) => (
+              <View key={c.id} style={styles.childBox}>
+                <View style={styles.childContent}>
+                  <View style={styles.childAvatar}>
+                    {c.photo ? (
+                      <Image source={{ uri: c.photo }} style={styles.childPhoto} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="person" size={28} color={colors.neutral.white} />
+                    )}
+                  </View>
+                  <View style={styles.childInfo}>
+                    <Text style={styles.childName}>{c.name || 'Sem cadastro'}</Text>
+                    <Text style={styles.childAge}>{c.age ? `${c.age} anos` : 'Idade nao informada'}</Text>
+                    {c.slug && (
+                      <View style={styles.slugRow}>
+                        <Text style={styles.slugText}>{c.slug}</Text>
+                        <TouchableOpacity
+                          onPress={async () => {
+                            try {
+                              let prefix = 'curuka://';
+                              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                                prefix = window.location.origin;
+                              }
+                              const link = `${prefix}/${c.slug}`;
+                              if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                                await navigator.clipboard.writeText(link);
+                                Alert.alert('Copiado', `Link copiado para a area de transferencia:\n${link}`);
+                                return;
+                              }
+                              Alert.alert('Aviso', `Copie manualmente o link:\n${link}`);
+                            } catch {
+                              Alert.alert('Erro', 'Nao foi possivel copiar o link');
+                            }
+                          }}
+                        >
+                          <Ionicons name="copy-outline" size={16} color={colors.neutral.text.muted} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    <StatusIndicator
+                      status={c.tagStatus === 'active' ? 'active' : 'inactive'}
+                      label={c.tagStatus === 'active' ? 'Tag Ativa' : 'Tag Desativada'}
+                      size="small"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.childActions}>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ChildProfile', { childId: c.id })}>
+                    <Ionicons name="eye-outline" size={18} color={colors.primary[600]} />
+                    <Text style={styles.actionButtonText}>Ver Perfil</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.actionButton} onPress={() => openEditModal(c)}>
+                    <Ionicons name="create-outline" size={18} color={colors.primary[600]} />
+                    <Text style={styles.actionButtonText}>Editar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.actionButton} onPress={() => deleteChildProfile(c.id)}>
+                    <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
+                    <Text style={[styles.actionButtonText, styles.dangerText]}>Excluir</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.tagPill} onPress={() => toggleTagStatus(c.id, c.tagStatus)}>
+                  <Text style={styles.tagPillText}>
+                    {c.tagStatus === 'active' ? 'Desativar Tag' : 'Ativar Tag'}
+                  </Text>
+                  <Switch
+                    value={c.tagStatus === 'active'}
+                    onValueChange={() => toggleTagStatus(c.id, c.tagStatus)}
+                    trackColor={{ false: colors.neutral.border, true: colors.primary[300] }}
+                    thumbColor={c.tagStatus === 'active' ? colors.primary[600] : colors.neutral.text.muted}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            // only show the create button when there are no profiles
+            // and we're not already on a premium account (premium users
+            // see their own button below once at least one profile exists)
+            <Button
+              title="Cadastrar Crianca"
+              onPress={openCreateModal}
+              variant="outline"
+              size="small"
+              style={styles.createChildButton}
+            />
+          )}
+          {/* premium users can add extra children, but only once a profile already
+              exists – we don’t want two identical buttons when the list is empty */}
+          {plan === 'premium' && hasChildProfile && (
+            <Button
+              title="Cadastrar Crianca"
+              onPress={openCreateModal}
+              variant="outline"
+              size="small"
+              style={[styles.createChildButton, { marginTop: spacing.sm }]}
+            />
+          )}
+        </Card>
+
+        <Card style={styles.planCard}>
+          <View style={styles.planHeader}>
+            <View>
+              <Text style={styles.planTitle}>Seu Plano</Text>
+              <Text style={styles.planSubtitle}>Gerencie sua assinatura</Text>
+            </View>
+            <PlanBadge plan={plan} size="large" />
+          </View>
+
+          <Button
+            title="Ver Beneficios"
+            onPress={handleUpgrade}
+            variant={plan === 'free' ? 'primary' : 'outline'}
+            size="small"
+          />
+        </Card>
+
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionButton}>
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary[100] }]}>
+              <Ionicons name="call" size={20} color={colors.primary[600]} />
+            </View>
+            <Text style={styles.quickActionText}>Ligar Agora</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickActionButton} onPress={() => navigation.navigate('History')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.secondary[100] }]}>
+              <Ionicons name="time" size={20} color={colors.secondary[600]} />
+            </View>
+            <Text style={styles.quickActionText}>Historico</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickActionButton}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: plan === 'free' ? colors.neutral.border : colors.primary[100] },
+              ]}
+            >
+              <Ionicons
+                name="map"
+                size={20}
+                color={plan === 'free' ? colors.neutral.text.muted : colors.primary[600]}
+              />
+              {plan === 'free' && (
+                <View style={styles.lockedIcon}>
+                  <Ionicons name="lock-closed" size={10} color={colors.neutral.white} />
+                </View>
+              )}
+            </View>
+            <Text style={[styles.quickActionText, plan === 'free' && styles.lockedText]}>Mapa</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={childModalVisible}
+        onRequestClose={() => setChildModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{editingChildId ? 'Editar Crianca' : 'Cadastrar Crianca'}</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>Foto (URL)</Text>
+              <TextInput
+                value={formData.photo}
+                onChangeText={(value) => setFormData((prev) => ({ ...prev, photo: value }))}
+                placeholder="https://..."
+                style={styles.input}
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.inputLabel}>Nome</Text>
+              <TextInput
+                value={formData.name}
+                onChangeText={(value) => setFormData((prev) => ({ ...prev, name: value }))}
+                placeholder="Nome da crianca"
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>Idade</Text>
+              <TextInput
+                value={formData.age}
+                onChangeText={(value) => setFormData((prev) => ({ ...prev, age: value }))}
+                placeholder="Ex: 7"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+
+              <Text style={styles.sectionTitle}>Responsaveis</Text>
+              {!canAddMoreGuardians && (
+                <Text style={styles.lockedHint}>Mais responsaveis? Disponivel no Plus/Premium</Text>
+              )}
+
+              {formData.guardians.map((guardian, index) => (
+                <View key={`guardian-${index}`} style={styles.guardianCard}>
+                  <View style={styles.guardianHeader}>
+                    <Text style={styles.guardianTitle}>Responsavel {index + 1}</Text>
+                    {canAddMoreGuardians && index > 0 && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            guardians: prev.guardians.filter((_, guardianIndex) => guardianIndex !== index),
+                          }))
+                        }
+                      >
+                        <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <Text style={styles.inputLabel}>Responsavel</Text>
+                  <TextInput
+                    value={guardian.name}
+                    onChangeText={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        guardians: prev.guardians.map((item, guardianIndex) =>
+                          guardianIndex === index ? { ...item, name: value } : item
+                        ),
+                      }))
+                    }
+                    placeholder="Nome do responsavel"
+                    style={styles.input}
+                  />
+
+                  <Text style={styles.inputLabel}>Telefone</Text>
+                  <TextInput
+                    value={guardian.phone}
+                    onChangeText={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        guardians: prev.guardians.map((item, guardianIndex) =>
+                          guardianIndex === index ? { ...item, phone: value } : item
+                        ),
+                      }))
+                    }
+                    placeholder="(11) 99999-9999"
+                    keyboardType="phone-pad"
+                    style={styles.input}
+                  />
+
+                  <Text style={styles.inputLabel}>Whatsapp</Text>
+                  <View style={styles.pcdButtons}>
+                    <TouchableOpacity
+                      style={[styles.optionButton, guardian.whatsapp && styles.optionButtonActive]}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          guardians: prev.guardians.map((item, guardianIndex) =>
+                            guardianIndex === index ? { ...item, whatsapp: true } : item
+                          ),
+                        }))
+                      }
+                    >
+                      <Text style={[styles.optionButtonText, guardian.whatsapp && styles.optionButtonTextActive]}>
+                        Sim
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.optionButton, !guardian.whatsapp && styles.optionButtonActive]}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          guardians: prev.guardians.map((item, guardianIndex) =>
+                            guardianIndex === index ? { ...item, whatsapp: false } : item
+                          ),
+                        }))
+                      }
+                    >
+                      <Text style={[styles.optionButtonText, !guardian.whatsapp && styles.optionButtonTextActive]}>
+                        Nao
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+
+              {canAddMoreGuardians && (
+                <TouchableOpacity
+                  style={styles.addGuardianButton}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      guardians: [...prev.guardians, createEmptyGuardian()],
+                    }))
+                  }
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={colors.primary[600]} />
+                  <Text style={styles.addGuardianText}>Adicionar responsavel</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.medicalHeader}
+                onPress={() => setMedicalInfoExpanded((prev) => !prev)}
+                activeOpacity={0.8}
+              >
+                <View>
+                  <Text style={styles.sectionTitle}>Informacoes Medicas</Text>
+                  {!canEditMedicalInfo && <Text style={styles.lockedHint}>Disponivel no Plus/Premium</Text>}
+                </View>
+                <Ionicons
+                  name={medicalInfoExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={colors.neutral.text.secondary}
+                />
+              </TouchableOpacity>
+
+              {medicalInfoExpanded && (
+                <View style={!canEditMedicalInfo && styles.disabledSection}>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.inputLabel}>PCD</Text>
+                    <View style={styles.pcdButtons}>
+                      <TouchableOpacity
+                        style={[styles.optionButton, formData.pcd && styles.optionButtonActive]}
+                        onPress={() => setFormData((prev) => ({ ...prev, pcd: true }))}
+                        disabled={!canEditMedicalInfo}
+                      >
+                        <Text style={[styles.optionButtonText, formData.pcd && styles.optionButtonTextActive]}>Sim</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.optionButton, !formData.pcd && styles.optionButtonActive]}
+                        onPress={() => setFormData((prev) => ({ ...prev, pcd: false }))}
+                        disabled={!canEditMedicalInfo}
+                      >
+                        <Text style={[styles.optionButtonText, !formData.pcd && styles.optionButtonTextActive]}>Nao</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <Text style={styles.inputLabel}>Planos de saude</Text>
+                  <TextInput
+                    value={formData.healthPlans}
+                    onChangeText={(value) => setFormData((prev) => ({ ...prev, healthPlans: value }))}
+                    placeholder="Unimed, Bradesco, ..."
+                    style={styles.input}
+                    editable={canEditMedicalInfo}
+                  />
+
+                  <Text style={styles.inputLabel}>Outras informacoes</Text>
+                  <TextInput
+                    value={formData.otherInfo}
+                    onChangeText={(value) => setFormData((prev) => ({ ...prev, otherInfo: value }))}
+                    placeholder="Informacoes adicionais"
+                    style={[styles.input, styles.textArea]}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                    editable={canEditMedicalInfo}
+                  />
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancelar"
+                onPress={() => setChildModalVisible(false)}
+                variant="outline"
+                size="small"
+                style={styles.modalButton}
+              />
+              <Button
+                title={editingChildId ? 'Salvar' : 'Cadastrar'}
+                onPress={handleSaveChildProfile}
+                loading={savingChild}
+                variant="primary"
+                size="small"
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={confirmDeleteVisible}
+        onRequestClose={() => setConfirmDeleteVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Excluir perfil</Text>
+            <Text>Tem certeza que deseja excluir o perfil da crianca?</Text>
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancelar"
+                onPress={() => setConfirmDeleteVisible(false)}
+                variant="outline"
+                size="small"
+                style={styles.modalButton}
+              />
+              <Button
+                title="Excluir"
+                onPress={async () => {
+                  setConfirmDeleteVisible(false);
+                  try {
+                    if (editingChildId) {
+                      await removeChildProfile(editingChildId);
+                      setRemoteChildren((prev) => prev.filter((c) => c.id !== editingChildId));
+                    }
+                  } catch (err) {
+                    console.error('failed to delete child profile', err);
+                    Alert.alert('Erro', 'Nao foi possivel excluir o perfil da crianca.');
+                  }
+                }}
+                variant="destructive"
+                size="small"
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.md,
+    paddingBottom: spacing.xxl,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  greeting: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: colors.neutral.text.secondary,
+    marginTop: 2,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: spacing.sm,
+    backgroundColor: colors.neutral.card,
+    borderRadius: borderRadius.full,
+    ...shadows.small,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.status.alert,
+  },
+  protectionCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary[500],
+  },
+  protectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  protectionInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  protectionDescription: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+    marginTop: spacing.xs,
+  },
+  upgradeButton: {
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  scoreFactors: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral.border,
+  },
+  factorItem: {
+    flex: 1,
+  },
+  factorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  factorName: {
+    fontSize: 11,
+    color: colors.neutral.text.muted,
+  },
+  factorValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+    marginTop: 2,
+  },
+  activityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.neutral.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityLocation: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.neutral.text.primary,
+  },
+  activityMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 4,
+  },
+  activityTime: {
+    fontSize: 12,
+    color: colors.neutral.text.muted,
+  },
+  childContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  childBox: {
+    marginBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral.border,
+    paddingBottom: spacing.lg,
+  },
+  childAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    overflow: 'hidden',
+  },
+  childPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  childInfo: {
+    flex: 1,
+  },
+  childName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+  },
+  childAge: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  childActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral.border,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.neutral.background,
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.neutral.text.primary,
+  },
+  dangerText: {
+    color: colors.status.alert,
+  },
+  tagPill: {
+    marginTop: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.neutral.background,
+  },
+  tagPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+  },
+  createChildButton: {
+    marginTop: spacing.md,
+  },
+  loadingWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: colors.neutral.text.muted,
+  },
+  planCard: {
+    backgroundColor: colors.primary[50],
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  planTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+  },
+  planSubtitle: {
+    fontSize: 12,
+    color: colors.neutral.text.secondary,
+    marginTop: 2,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: spacing.sm,
+  },
+  quickActionButton: {
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+    position: 'relative',
+  },
+  quickActionText: {
+    fontSize: 12,
+    color: colors.neutral.text.secondary,
+    fontWeight: '500',
+  },
+  lockedIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.neutral.text.muted,
+    borderRadius: 8,
+    padding: 2,
+  },
+  lockedText: {
+    color: colors.neutral.text.muted,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.neutral.card,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    padding: spacing.md,
+    maxHeight: '85%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+    marginBottom: 6,
+    marginTop: spacing.sm,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.neutral.background,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    color: colors.neutral.text.primary,
+  },
+  textArea: {
+    minHeight: 90,
+  },
+  guardianCard: {
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral.background,
+    padding: spacing.sm,
+  },
+  guardianHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  guardianTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+  },
+  addGuardianButton: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+  },
+  addGuardianText: {
+    color: colors.primary[700],
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  medicalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+  },
+  lockedHint: {
+    fontSize: 12,
+    color: colors.status.warning,
+    fontWeight: '600',
+  },
+  disabledSection: {
+    opacity: 0.55,
+  },
+  switchRow: {
+    marginTop: spacing.sm,
+  },
+  pcdButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  optionButton: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.neutral.background,
+  },
+  optionButtonActive: {
+    backgroundColor: colors.primary[100],
+    borderColor: colors.primary[600],
+  },
+  optionButtonText: {
+    color: colors.neutral.text.secondary,
+    fontWeight: '500',
+  },
+  optionButtonTextActive: {
+    color: colors.primary[700],
+  },
+  slugRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  slugText: {
+    fontSize: 12,
+    color: colors.neutral.text.muted,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+  },
+});
