@@ -83,13 +83,13 @@ export const PLAN_LIMITS = {
   plus: {
     children: 1,
     guardians: 5,
-    historyHours: Infinity,
+    historyHours: 'Ilimitado',
     features: ['full_history', 'map_view', 'remote_block', 'sms_limited', 'export_history']
   },
   premium: {
-    children: Infinity,
-    guardians: Infinity,
-    historyHours: Infinity,
+    children: 'Ilimitado',
+    guardians: 'Ilimitado',
+    historyHours: 'Ilimitado',
     features: ['unusual_alerts', 'dynamic_score', 'emergency_mode', 'monthly_report', 'sms_unlimited', 'encrypted_backup', 'temp_share', 'priority_notifications']
   }
 };
