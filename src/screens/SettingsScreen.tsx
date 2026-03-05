@@ -10,6 +10,7 @@ import { logout } from '../services/auth-service';
 import { getAuth } from 'firebase/auth';
 import { saveUserSettings } from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
+import { Footer } from '../components/Footer';
 
 export function SettingsScreen() {
   const { state, setUserSettings } = useApp();
@@ -232,10 +233,7 @@ export function SettingsScreen() {
         </Card>
 
         {/* App Info */}
-        <View style={styles.appInfo}>
-          <Text style={styles.appName}>curuka Safe</Text>
-          <Text style={styles.appVersion}>Versão 1.0.0</Text>
-        </View>
+        <Footer />
       </ScrollView>
     </SafeAreaView>
   );

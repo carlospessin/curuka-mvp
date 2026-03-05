@@ -8,6 +8,7 @@ import { PlanBadge } from '../components/PlanBadge';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { PlanType, PLAN_NAMES, PLAN_PRICES } from '../types';
+import { Footer } from '../components/Footer';
 
 interface PlanFeature {
   name: string;
@@ -192,6 +193,7 @@ export function PlansScreen() {
             </View>
           </View>
         </View>
+        <Footer />
       </ScrollView>
     </SafeAreaView>
   );

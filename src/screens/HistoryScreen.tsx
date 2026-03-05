@@ -9,6 +9,7 @@ import { useApp } from '../context/AppContext';
 import { markChildEventsAsRead, watchChildEvents } from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { AppNotification } from '../types';
+import { Footer } from '../components/Footer';
 
 export function HistoryScreen() {
   const { state } = useApp();
@@ -157,6 +158,7 @@ export function HistoryScreen() {
           }
         />
       )}
+      <Footer />
     </SafeAreaView>
   );
 }
