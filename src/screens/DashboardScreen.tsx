@@ -11,6 +11,7 @@ import {
   Switch,
   ActivityIndicator,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ import { removeChildProfile, saveChildProfile, setChildTagStatus, watchChildrenL
 import { Platform } from 'react-native';
 import ShieldIcon from '../components/ShieldIcon';
 import StatusPulse from '../components/StatusPulse';
+import { Footer } from '../components/Footer';
 
 
 type ChildMedicalInfo = {
@@ -49,16 +51,25 @@ type ChildFormData = {
     name: string;
     phone: string;
     whatsapp: boolean;
+    principal: boolean;
   }[];
   pcd: boolean;
   healthPlans: string;
   otherInfo: string;
 };
 
+type NfcWriteStatus =
+  | {
+    type: 'success' | 'error';
+    message: string;
+  }
+  | null;
+
 const createEmptyGuardian = () => ({
   name: '',
   phone: '',
   whatsapp: true,
+  principal: true,
 });
 
 const EMPTY_CHILD_FORM: ChildFormData = {
@@ -73,14 +84,17 @@ const EMPTY_CHILD_FORM: ChildFormData = {
 
 export function DashboardScreen() {
   const navigation = useNavigation<any>();
-  const { state } = useApp();
-  const { children, recentScans, protectionScore, plan } = state;
+  const { state, unreadNotifications } = useApp();
+  const { children, notifications, protectionScore, plan } = state;
   // If the context still contains a legacy sample child we ignore it by
   // treating an empty array as "no profile". `fallbackChild` is only used
   // when there really is at least one child stored locally, which shouldn't
   // happen in production now that initial children starts empty.
   const fallbackChild = children.length > 0 ? children[0] : null;
-  const lastScan = recentScans[0];
+  const latestNotification = useMemo(() => {
+    if (!notifications || notifications.length === 0) return null;
+    return [...notifications].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+  }, [notifications]);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -93,6 +107,13 @@ export function DashboardScreen() {
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
   const [medicalInfoExpanded, setMedicalInfoExpanded] = useState(false);
   const [formData, setFormData] = useState<ChildFormData>(EMPTY_CHILD_FORM);
+  const [nfcModalVisible, setNfcModalVisible] = useState(false);
+  const [nfcTargetChild, setNfcTargetChild] = useState<ChildProfile | null>(null);
+  const [nfcSupported, setNfcSupported] = useState<boolean | null>(null);
+  const [nfcEnabled, setNfcEnabled] = useState<boolean | null>(null);
+  const [checkingNfc, setCheckingNfc] = useState(false);
+  const [writingNfc, setWritingNfc] = useState(false);
+  const [nfcWriteStatus, setNfcWriteStatus] = useState<NfcWriteStatus>(null);
 
   const canEditMedicalInfo = plan === 'plus' || plan === 'premium';
   const canAddMoreGuardians = plan === 'plus' || plan === 'premium';
@@ -155,7 +176,7 @@ export function DashboardScreen() {
     // subscribe to entire list; updates will replace the array automatically
     const unsubscribe = watchChildrenList(
       user.uid,
-      (profiles) => {
+      (profiles: ChildProfile[]) => {
         setRemoteChildren(profiles);
         setLoadingChild(false);
       },
@@ -185,6 +206,147 @@ export function DashboardScreen() {
     navigation.navigate('Plans');
   };
 
+  const buildChildProfileLink = (profile: ChildProfile | null) => {
+    if (!profile?.slug) return null;
+
+    let prefix = 'curuka://';
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      prefix = window.location.origin;
+    }
+
+    return `${prefix}/${profile.slug}`;
+  };
+
+  const checkNfcStatus = async () => {
+    if (Platform.OS === 'web') {
+      setNfcSupported(false);
+      setNfcEnabled(false);
+      return { supported: false, enabled: false };
+    }
+
+    setCheckingNfc(true);
+    try {
+      const { default: NfcManager } = await import('react-native-nfc-manager');
+      await NfcManager.start();
+
+      const supported = await NfcManager.isSupported();
+      let enabled = false;
+
+      if (supported) {
+        enabled = await NfcManager.isEnabled();
+      }
+
+      setNfcSupported(supported);
+      setNfcEnabled(enabled);
+      return { supported, enabled };
+    } catch {
+      setNfcSupported(false);
+      setNfcEnabled(false);
+      return { supported: false, enabled: false };
+    } finally {
+      setCheckingNfc(false);
+    }
+  };
+
+  const openNfcModal = async (profile: ChildProfile) => {
+    setNfcTargetChild(profile);
+    setNfcWriteStatus(null);
+    setNfcModalVisible(true);
+    await checkNfcStatus();
+  };
+
+  const closeNfcModal = () => {
+    if (writingNfc) return;
+    setNfcModalVisible(false);
+    setNfcWriteStatus(null);
+  };
+
+  const openNfcSettings = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('NFC indisponivel', 'A gravação NFC funciona apenas no app para celular.');
+      return;
+    }
+
+    try {
+      const { default: NfcManager } = await import('react-native-nfc-manager');
+      if (Platform.OS === 'android') {
+        await NfcManager.goToNfcSetting();
+      } else {
+        Alert.alert('Ative o NFC', 'No iPhone, va em Ajustes e habilite o NFC.');
+      }
+    } catch {
+      Alert.alert('Erro', 'Nao foi possivel abrir as configuracoes de NFC.');
+    }
+  };
+
+  const writeChildLinkToNfc = async () => {
+    if (!nfcTargetChild) return;
+
+    const link = buildChildProfileLink(nfcTargetChild);
+    if (!link) {
+      const msg = 'Este perfil ainda nao possui link publico para gravacao NFC.';
+      setNfcWriteStatus({ type: 'error', message: msg });
+      Alert.alert('Nao foi possivel gravar', msg);
+      return;
+    }
+
+    const status = await checkNfcStatus();
+    if (!status.supported) {
+      const msg = 'Este celular nao oferece suporte a NFC.';
+      setNfcWriteStatus({ type: 'error', message: msg });
+      Alert.alert('NFC indisponivel', msg);
+      return;
+    }
+
+    if (!status.enabled) {
+      const msg = 'Ative o NFC do celular antes de gravar a tag.';
+      setNfcWriteStatus({ type: 'error', message: msg });
+      Alert.alert('NFC desativado', msg);
+      return;
+    }
+
+    setWritingNfc(true);
+    setNfcWriteStatus(null);
+
+    let NfcManagerRef: any;
+    try {
+      const { default: NfcManager, Ndef, NfcTech } = await import('react-native-nfc-manager');
+      NfcManagerRef = NfcManager;
+
+      await NfcManager.requestTechnology(NfcTech.Ndef, {
+        alertMessage: 'Aproxime a tag NFC para gravar o perfil da crianca.',
+      });
+
+      const bytes = Ndef.encodeMessage([Ndef.uriRecord(link)]);
+      if (!bytes || bytes.length === 0) {
+        throw new Error('Falha ao codificar os dados do link.');
+      }
+
+      await NfcManager.ndefHandler.writeNdefMessage(bytes);
+
+      const successMessage = 'Tag NFC gravada com sucesso.';
+      setNfcWriteStatus({ type: 'success', message: successMessage });
+      Alert.alert('Sucesso', `${successMessage}\n\nLink: ${link}`);
+    } catch (err: any) {
+      const rawMessage = String(err?.message || '').toLowerCase();
+      const isUserCancel = rawMessage.includes('cancel') || rawMessage.includes('cancelled');
+      const message = isUserCancel
+        ? 'Gravacao cancelada.'
+        : `Falha ao gravar NFC. ${err?.message || ''}`.trim();
+      setNfcWriteStatus({ type: 'error', message });
+      if (!isUserCancel) {
+        Alert.alert('Erro ao gravar', message);
+      }
+    } finally {
+      try {
+        await NfcManagerRef?.cancelTechnologyRequest();
+      } catch {
+        // keep silent: request may already be closed
+      }
+      setWritingNfc(false);
+    }
+  };
+
   const openCreateModal = () => {
     setEditingChildId(null);
     setFormData(EMPTY_CHILD_FORM);
@@ -193,19 +355,23 @@ export function DashboardScreen() {
   };
 
   const openEditModal = (profile: ChildProfile) => {
+    const rawGuardians =
+      Array.isArray(profile.guardians) && profile.guardians.length > 0
+        ? profile.guardians
+        : [createEmptyGuardian()];
+    const hasPrincipal = rawGuardians.some((guardian) => Boolean((guardian as any)?.principal));
+
     setEditingChildId(profile.id);
     setFormData({
       photo: profile.photo || '',
       name: profile.name || '',
       age: profile.age ? String(profile.age) : '',
-      guardians:
-        Array.isArray(profile.guardians) && profile.guardians.length > 0
-          ? profile.guardians.map((guardian) => ({
-            name: guardian?.name || '',
-            phone: guardian?.phone || '',
-            whatsapp: Boolean(guardian?.whatsapp),
-          }))
-          : [createEmptyGuardian()],
+      guardians: rawGuardians.map((guardian, index) => ({
+        name: guardian?.name || '',
+        phone: guardian?.phone || '',
+        whatsapp: Boolean(guardian?.whatsapp),
+        principal: hasPrincipal ? Boolean((guardian as any)?.principal) : index === 0,
+      })),
       pcd: Boolean(profile.medicalInfo?.pcd),
       healthPlans: profile.medicalInfo?.healthPlans || '',
       otherInfo: profile.medicalInfo?.otherInfo || '',
@@ -237,6 +403,7 @@ export function DashboardScreen() {
         name: guardian.name.trim(),
         phone: guardian.phone.trim(),
         whatsapp: guardian.whatsapp,
+        principal: Boolean(guardian.principal),
       }))
       .filter((guardian) => guardian.name || guardian.phone);
 
@@ -245,12 +412,25 @@ export function DashboardScreen() {
       return;
     }
 
+    const selectedPrincipalIndex = normalizedGuardians.findIndex((guardian) => guardian.principal);
+    const guardiansWithPrincipal = normalizedGuardians.map((guardian) => ({ ...guardian, principal: false }));
+    if (guardiansWithPrincipal.length === 1) {
+      guardiansWithPrincipal[0].principal = true;
+    } else if (selectedPrincipalIndex >= 0) {
+      guardiansWithPrincipal[selectedPrincipalIndex].principal = true;
+    } else {
+      guardiansWithPrincipal[0].principal = true;
+    }
+
     const payload = {
       name: formData.name.trim(),
       age: parsedAge,
       photo: formData.photo.trim() || null,
+      publicProfile: true,
       tagStatus: child?.tagStatus || 'inactive',
-      guardians: canAddMoreGuardians ? normalizedGuardians : [normalizedGuardians[0]],
+      guardians: canAddMoreGuardians
+        ? guardiansWithPrincipal
+        : [{ ...guardiansWithPrincipal[0], principal: true }],
       medicalInfo: canEditMedicalInfo
         ? {
           pcd: formData.pcd,
@@ -327,13 +507,13 @@ export function DashboardScreen() {
             <Text style={styles.greeting}>Ola, {userName}</Text>
             <Text style={styles.subtitle}>Protecao ativa para sua familia</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate('History')}>
             <Ionicons name="notifications-outline" size={24} color={colors.neutral.text.primary} />
-            <View style={styles.notificationDot} />
+            {unreadNotifications > 0 && <View style={styles.notificationDot} />}
           </TouchableOpacity>
         </View>
 
-        <Card style={styles.protectionCard}>
+        {/* <Card style={styles.protectionCard}>
           <View style={styles.protectionTop}>
             <ShieldIcon size={48} color={colors.greenSoft} />
             <View style={styles.protectionTextWrap}>
@@ -357,37 +537,9 @@ export function DashboardScreen() {
               </View>
             ))}
           </View>
-        </Card>
+        </Card> */}
 
-        <Card
-          title="Ultima Atividade"
-          subtitle="Escaneamento recente"
-          onPress={() => navigation.navigate('History')}
-        >
-          <View style={styles.activityContent}>
-            <View style={styles.activityIcon}>
-              <Ionicons
-                name={lastScan.type === 'normal' ? 'checkmark-circle' : 'warning'}
-                size={24}
-                color={lastScan.type === 'normal' ? colors.status.active : colors.status.warning}
-              />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityLocation}>{lastScan.location}</Text>
-              <View style={styles.activityMeta}>
-                <Text style={styles.activityTime}>{formatTimeAgo(lastScan.timestamp)}</Text>
-                <StatusIndicator
-                  status={lastScan.type === 'normal' ? 'active' : 'warning'}
-                  label={lastScan.type === 'normal' ? 'Normal' : 'Atencao'}
-                  size="small"
-                />
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
-          </View>
-        </Card>
-
-        <Card title="Perfil da Crianca">
+        <Card title="Crianças Cadastradas" subtitle="Gerencie os perfis das crianças">
           {loadingChild ? (
             <View style={styles.loadingWrapper}>
               <ActivityIndicator color={colors.primary[600]} />
@@ -395,86 +547,80 @@ export function DashboardScreen() {
             </View>
           ) : hasChildProfile ? (
             childrenList.map((c) => (
-              <View key={c.id} style={styles.childBox}>
-                <View style={styles.childContent}>
-                  <View style={styles.childAvatar}>
-                    {c.photo ? (
-                      <Image source={{ uri: c.photo }} style={styles.childPhoto} resizeMode="cover" />
-                    ) : (
-                      <Ionicons name="person" size={28} color={colors.neutral.white} />
-                    )}
-                  </View>
-                  <View style={styles.childInfo}>
-                    <Text style={styles.childName}>{c.name || 'Sem cadastro'}</Text>
-                    <Text style={styles.childAge}>{c.age ? `${c.age} anos` : 'Idade nao informada'}</Text>
-                    {c.slug && (
-                      <View style={styles.slugRow}>
-                        <Text style={styles.slugText}>{c.slug}</Text>
-                        <TouchableOpacity
-                          onPress={async () => {
-                            try {
-                              let prefix = 'curuka://';
-                              if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                                prefix = window.location.origin;
-                              }
-                              const link = `${prefix}/${c.slug}`;
-                              if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-                                await navigator.clipboard.writeText(link);
-                                Alert.alert('Copiado', `Link copiado para a area de transferencia:\n${link}`);
-                                return;
-                              }
-                              Alert.alert('Aviso', `Copie manualmente o link:\n${link}`);
-                            } catch {
-                              Alert.alert('Erro', 'Nao foi possivel copiar o link');
-                            }
-                          }}
-                        >
-                          <Ionicons name="copy-outline" size={16} color={colors.neutral.text.muted} />
-                        </TouchableOpacity>
+              <Card key={c.id} style={styles.childItemCard}>
+                <View style={styles.childBox}>
+                  <View style={styles.childTopRow}>
+                    <View style={styles.childContent}>
+                      <View style={styles.childAvatar}>
+                        {c.photo ? (
+                          <Image source={{ uri: c.photo }} style={styles.childPhoto} resizeMode="cover" />
+                        ) : (
+                          <Ionicons name="person" size={28} color={colors.neutral.white} />
+                        )}
                       </View>
-                    )}
-                    <StatusIndicator
-                      status={c.tagStatus === 'active' ? 'active' : 'inactive'}
-                      label={c.tagStatus === 'active' ? 'Tag Ativa' : 'Tag Desativada'}
-                      size="small"
-                    />
+                      <View style={styles.childInfo}>
+                        <Text style={styles.childName}>{c.name || 'Sem cadastro'}</Text>
+                        <Text style={styles.childAge}>{c.age ? `${c.age} anos` : 'Idade nao informada'}</Text>
+                        {c.slug && (
+                          <View style={styles.slugRow}>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.nfcIconButton}
+                      onPress={() => openNfcModal(c)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="wifi-outline" size={18} color={colors.secondary[700]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.childActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={async () => {
+                        if (!c.slug) {
+                          Alert.alert('Link indisponivel', 'Este perfil ainda nao possui slug publico.');
+                          return;
+                        }
+                        const publicLink = buildChildProfileLink(c);
+                        if (!publicLink) {
+                          Alert.alert('Link indisponivel', 'Nao foi possivel montar o link publico do perfil.');
+                          return;
+                        }
+
+                        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                          window.open(publicLink, '_blank', 'noopener,noreferrer');
+                          return;
+                        }
+
+                        try {
+                          await Linking.openURL(publicLink);
+                        } catch {
+                          navigation.navigate('ChildProfile', { slug: c.slug });
+                        }
+                      }}
+                    >
+                      <Ionicons name="eye-outline" size={18} color={colors.primary[600]} />
+                      <Text style={styles.actionButtonText}>Ver Perfil</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionButton} onPress={() => openEditModal(c)}>
+                      <Ionicons name="create-outline" size={18} color={colors.primary[600]} />
+                      <Text style={styles.actionButtonText}>Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionButton} onPress={() => deleteChildProfile(c.id)}>
+                      <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
+                      <Text style={[styles.actionButtonText, styles.dangerText]}>Excluir</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-
-                <View style={styles.childActions}>
-                  <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ChildProfile', { childId: c.id })}>
-                    <Ionicons name="eye-outline" size={18} color={colors.primary[600]} />
-                    <Text style={styles.actionButtonText}>Ver Perfil</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.actionButton} onPress={() => openEditModal(c)}>
-                    <Ionicons name="create-outline" size={18} color={colors.primary[600]} />
-                    <Text style={styles.actionButtonText}>Editar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.actionButton} onPress={() => deleteChildProfile(c.id)}>
-                    <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
-                    <Text style={[styles.actionButtonText, styles.dangerText]}>Excluir</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* <TouchableOpacity style={styles.tagPill} onPress={() => toggleTagStatus(c.id, c.tagStatus)}>
-                  <Text style={styles.tagPillText}>
-                    {c.tagStatus === 'active' ? 'Desativar Tag' : 'Ativar Tag'}
-                  </Text>
-                  <Switch
-                    value={c.tagStatus === 'active'}
-                    onValueChange={() => toggleTagStatus(c.id, c.tagStatus)}
-                    trackColor={{ false: colors.neutral.border, true: colors.primary[300] }}
-                    thumbColor={c.tagStatus === 'active' ? colors.primary[600] : colors.neutral.text.muted}
-                  />
-                </TouchableOpacity> */}
-              </View>
+              </Card>
             ))
           ) : (
-            // only show the create button when there are no profiles
-            // and we're not already on a premium account (premium users
-            // see their own button below once at least one profile exists)
             <Button
               title="Cadastrar Crianca"
               onPress={openCreateModal}
@@ -483,8 +629,6 @@ export function DashboardScreen() {
               style={styles.createChildButton}
             />
           )}
-          {/* premium users can add extra children, but only once a profile already
-              exists – we don’t want two identical buttons when the list is empty */}
           {plan === 'premium' && hasChildProfile && (
             <Button
               title="Cadastrar Crianca"
@@ -495,6 +639,42 @@ export function DashboardScreen() {
             />
           )}
         </Card>
+
+        <Card
+          title="Ultima Atividade"
+          subtitle="Notificacao mais recente"
+          onPress={() => navigation.navigate('History')}
+        >
+          {latestNotification ? (
+            <View style={styles.activityContent}>
+              <View style={styles.activityIcon}>
+                <Ionicons
+                  name={latestNotification.type === 'scan' ? 'scan-outline' : 'location-outline'}
+                  size={24}
+                  color={latestNotification.type === 'scan' ? colors.primary[600] : colors.secondary[600]}
+                />
+              </View>
+              <View style={styles.activityInfo}>
+                <Text style={styles.activityLocation}>{latestNotification.message}</Text>
+                <View style={styles.activityMeta}>
+                  <Text style={styles.activityTime}>{formatTimeAgo(latestNotification.timestamp)}</Text>
+                  <StatusIndicator
+                    status={latestNotification.type === 'scan' ? 'active' : 'warning'}
+                    label={latestNotification.type === 'scan' ? 'Escaneamento' : 'Localizacao'}
+                    size="small"
+                  />
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
+            </View>
+          ) : (
+            <View style={styles.loadingWrapper}>
+              <Text style={styles.loadingText}>Nenhuma notificacao recebida ainda.</Text>
+            </View>
+          )}
+        </Card>
+
+
 
         <Card style={styles.planCard}>
           <View style={styles.planHeader}>
@@ -513,7 +693,7 @@ export function DashboardScreen() {
           />
         </Card>
 
-        <View style={styles.quickActions}>
+        {/* <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionButton}>
             <View style={[styles.quickActionIcon, { backgroundColor: colors.primary[100] }]}>
               <Ionicons name="call" size={20} color={colors.primary[600]} />
@@ -548,8 +728,99 @@ export function DashboardScreen() {
             </View>
             <Text style={[styles.quickActionText, plan === 'free' && styles.lockedText]}>Mapa</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
+        <Footer />
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={nfcModalVisible}
+        onRequestClose={closeNfcModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.nfcModalHeader}>
+              <Text style={styles.modalTitle}>Gravar NFC</Text>
+              <TouchableOpacity onPress={closeNfcModal} disabled={writingNfc}>
+                <Ionicons name="close" size={20} color={colors.neutral.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.nfcTargetText}>
+              Perfil: <Text style={styles.nfcTargetName}>{nfcTargetChild?.name || 'Crianca'}</Text>
+            </Text>
+            <Text style={styles.nfcLinkText}>{buildChildProfileLink(nfcTargetChild) || 'Link indisponivel'}</Text>
+
+            <View style={styles.nfcInstructionsBox}>
+              <Text style={styles.nfcInstructionsTitle}>Como usar</Text>
+              <Text style={styles.nfcInstructionItem}>1. Ative o NFC no celular.</Text>
+              <Text style={styles.nfcInstructionItem}>2. Toque em "Gravar NFC".</Text>
+              <Text style={styles.nfcInstructionItem}>3. Encoste a tag NFC na parte traseira do aparelho.</Text>
+              <Text style={styles.nfcInstructionItem}>4. Aguarde a confirmacao de sucesso.</Text>
+            </View>
+
+            <View style={styles.nfcStatusRow}>
+              <Text style={styles.nfcStatusLabel}>Suporte NFC:</Text>
+              <Text style={[styles.nfcStatusValue, nfcSupported ? styles.nfcOk : styles.nfcError]}>
+                {checkingNfc ? 'Verificando...' : nfcSupported ? 'Disponivel' : 'Indisponivel'}
+              </Text>
+            </View>
+            <View style={styles.nfcStatusRow}>
+              <Text style={styles.nfcStatusLabel}>NFC do celular:</Text>
+              <Text style={[styles.nfcStatusValue, nfcEnabled ? styles.nfcOk : styles.nfcError]}>
+                {checkingNfc ? 'Verificando...' : nfcEnabled ? 'Ativo' : 'Desativado'}
+              </Text>
+            </View>
+
+            {nfcWriteStatus && (
+              <View
+                style={[
+                  styles.nfcResultBox,
+                  nfcWriteStatus.type === 'success' ? styles.nfcResultSuccess : styles.nfcResultError,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.nfcResultText,
+                    nfcWriteStatus.type === 'success' ? styles.nfcOk : styles.nfcError,
+                  ]}
+                >
+                  {nfcWriteStatus.message}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Fechar"
+                onPress={closeNfcModal}
+                variant="outline"
+                size="small"
+                style={styles.modalButton}
+                disabled={writingNfc}
+              />
+              {!nfcEnabled && (
+                <Button
+                  title="Ativar NFC"
+                  onPress={openNfcSettings}
+                  variant="outline"
+                  size="small"
+                  style={styles.modalButton}
+                />
+              )}
+              <Button
+                title={writingNfc ? 'Gravando...' : 'Gravar NFC'}
+                onPress={writeChildLinkToNfc}
+                size="small"
+                style={styles.modalButton}
+                loading={writingNfc}
+                disabled={checkingNfc || !nfcSupported || !nfcEnabled || !nfcTargetChild?.slug}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="slide"
@@ -602,7 +873,18 @@ export function DashboardScreen() {
                         onPress={() =>
                           setFormData((prev) => ({
                             ...prev,
-                            guardians: prev.guardians.filter((_, guardianIndex) => guardianIndex !== index),
+                            guardians: prev.guardians
+                              .filter((_, guardianIndex) => guardianIndex !== index)
+                              .map((item, newIndex, arr) => {
+                                if (arr.length === 1) {
+                                  return { ...item, principal: true };
+                                }
+                                const hasPrincipal = arr.some((g) => g.principal);
+                                if (!hasPrincipal && newIndex === 0) {
+                                  return { ...item, principal: true };
+                                }
+                                return item;
+                              }),
                           }))
                         }
                       >
@@ -675,6 +957,47 @@ export function DashboardScreen() {
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  <Text style={styles.inputLabel}>Contato principal</Text>
+                  <View style={styles.pcdButtons}>
+                    <TouchableOpacity
+                      style={[styles.optionButton, guardian.principal && styles.optionButtonActive]}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          guardians: prev.guardians.map((item, guardianIndex) => ({
+                            ...item,
+                            principal: guardianIndex === index,
+                          })),
+                        }))
+                      }
+                    >
+                      <Text style={[styles.optionButtonText, guardian.principal && styles.optionButtonTextActive]}>
+                        Sim
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.optionButton, !guardian.principal && styles.optionButtonActive]}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          guardians: prev.guardians.map((item, guardianIndex) => {
+                            if (guardianIndex === index && prev.guardians.length > 1) {
+                              return { ...item, principal: false };
+                            }
+                            if (prev.guardians.length === 1) {
+                              return { ...item, principal: true };
+                            }
+                            return item;
+                          }),
+                        }))
+                      }
+                    >
+                      <Text style={[styles.optionButtonText, !guardian.principal && styles.optionButtonTextActive]}>
+                        Nao
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
 
@@ -684,7 +1007,13 @@ export function DashboardScreen() {
                   onPress={() =>
                     setFormData((prev) => ({
                       ...prev,
-                      guardians: [...prev.guardians, createEmptyGuardian()],
+                      guardians: [
+                        ...prev.guardians.map((item, index) => ({
+                          ...item,
+                          principal: prev.guardians.length === 0 ? index === 0 : item.principal,
+                        })),
+                        { ...createEmptyGuardian(), principal: false },
+                      ],
                     }))
                   }
                 >
@@ -808,7 +1137,7 @@ export function DashboardScreen() {
                     Alert.alert('Erro', 'Nao foi possivel excluir o perfil da crianca.');
                   }
                 }}
-                variant="destructive"
+                variant="danger"
                 size="small"
                 style={styles.modalButton}
               />
@@ -816,6 +1145,7 @@ export function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -946,12 +1276,18 @@ const styles = StyleSheet.create({
   childContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  childTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  childItemCard: {
+    marginTop: spacing.sm,
   },
   childBox: {
-    marginBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.border,
-    paddingBottom: spacing.lg,
+    marginBottom: 0,
   },
   childAvatar: {
     width: 56,
@@ -969,6 +1305,16 @@ const styles = StyleSheet.create({
   },
   childInfo: {
     flex: 1,
+  },
+  nfcIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondary[100],
+    borderWidth: 1,
+    borderColor: colors.secondary[300],
   },
   childName: {
     fontSize: 16,
@@ -1105,6 +1451,80 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.neutral.text.primary,
     marginBottom: spacing.md,
+  },
+  nfcModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nfcTargetText: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+    marginBottom: 2,
+  },
+  nfcTargetName: {
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+  },
+  nfcLinkText: {
+    fontSize: 12,
+    color: colors.neutral.text.muted,
+    marginBottom: spacing.sm,
+  },
+  nfcInstructionsBox: {
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    backgroundColor: colors.neutral.background,
+    padding: spacing.sm,
+  },
+  nfcInstructionsTitle: {
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+    marginBottom: spacing.xs,
+  },
+  nfcInstructionItem: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+    marginBottom: 2,
+  },
+  nfcStatusRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nfcStatusLabel: {
+    fontSize: 13,
+    color: colors.neutral.text.secondary,
+  },
+  nfcStatusValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  nfcOk: {
+    color: colors.status.active,
+  },
+  nfcError: {
+    color: colors.status.alert,
+  },
+  nfcResultBox: {
+    marginTop: spacing.md,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    padding: spacing.sm,
+  },
+  nfcResultSuccess: {
+    borderColor: colors.primary[200],
+    backgroundColor: colors.primary[50],
+  },
+  nfcResultError: {
+    borderColor: '#ffcdd2',
+    backgroundColor: '#ffebee',
+  },
+  nfcResultText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   inputLabel: {
     fontSize: 13,

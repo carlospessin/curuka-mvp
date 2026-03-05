@@ -1,230 +1,352 @@
 import React from 'react';
-import { useRoute } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 // @ts-ignore: vector-icons types sometimes missing
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusIndicator } from '../components/StatusIndicator';
 import { useApp } from '../context/AppContext';
-import { getChildBySlug } from '../services/pessoa-service.js';
-import { getAuth } from 'firebase/auth';
+import { createChildEvent, getChildByPublicSlug } from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
+import { Footer } from '../components/Footer';
 
 export function ChildProfileScreen() {
   const { state, emergencyMode, toggleEmergencyMode } = useApp();
   const { plan } = state;
   const route = useRoute<any>();
+
   const requestedId: string | undefined = route.params?.childId;
   const requestedSlug: string | undefined = route.params?.slug;
 
   const [resolvedChild, setResolvedChild] = React.useState<import('../types').Child | null>(null);
+  const [resolvingChild, setResolvingChild] = React.useState(false);
+  const [profileNotFound, setProfileNotFound] = React.useState(false);
+  const [locationStatus, setLocationStatus] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [sendingLocation, setSendingLocation] = React.useState(false);
 
-  // attempt to resolve the child either from the context or by slug lookup
   React.useEffect(() => {
-    if (requestedId) {
-      // id takes precedence, nothing to fetch
-      return;
-    }
+    let cancelled = false;
 
-    if (requestedSlug) {
-      // try to find in already‑loaded children first
-      const found = state.children.find((c) => c.slug === requestedSlug);
-      if (found) {
-        setResolvedChild(found);
+    const resolveChild = async () => {
+      setResolvedChild(null);
+      setProfileNotFound(false);
+
+      if (requestedId) {
+        setResolvingChild(false);
         return;
       }
 
-      // fall back to querying Firestore directly
-      const auth = getAuth();
-      const uid = auth.currentUser?.uid;
-      if (uid) {
-        getChildBySlug(uid, requestedSlug)
-          .then((c) => {
-            if (c) setResolvedChild(c);
-          })
-          .catch((err) => console.error('error fetching child by slug', err));
+      if (!requestedSlug) {
+        setResolvingChild(false);
+        return;
       }
-    }
+
+      const localChild = state.children.find((c) => c.slug === requestedSlug);
+      if (localChild) {
+        setResolvedChild(localChild);
+        setResolvingChild(false);
+        return;
+      }
+
+      setResolvingChild(true);
+      try {
+        const childBySlug = await getChildByPublicSlug(requestedSlug);
+        if (cancelled) return;
+
+        if (childBySlug) {
+          setResolvedChild(childBySlug);
+        } else {
+          setProfileNotFound(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('error fetching child by slug', err);
+          setProfileNotFound(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setResolvingChild(false);
+        }
+      }
+    };
+
+    resolveChild();
+
+    return () => {
+      cancelled = true;
+    };
   }, [requestedId, requestedSlug, state.children]);
 
-  const child =
-    resolvedChild ||
-    state.children.find((c) => c.id === requestedId) ||
-    state.children[0] ||
-    { name: '', age: 0, tagStatus: 'inactive', guardians: [], medicalInfo: {} };
+  const childById = requestedId ? state.children.find((c) => c.id === requestedId) : null;
+  const child = resolvedChild || childById || (!requestedId && !requestedSlug ? state.children[0] : null);
 
-  const handleEmergencyMode = () => {
-    Alert.alert(
-      emergencyMode ? 'Desativar Modo Emergência' : 'Ativar Modo Emergência',
-      emergencyMode
-        ? 'O modo emergência será desativado.'
-        : 'Todos os responsáveis serão notificados e os dados médicos serão exibidos.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: emergencyMode ? 'Desativar' : 'Ativar',
-          style: emergencyMode ? 'default' : 'destructive',
-          onPress: toggleEmergencyMode,
-        },
-      ]
-    );
+  const guardians = Array.isArray(child?.guardians) ? child.guardians : [];
+  const primaryGuardian = guardians.find((guardian) => guardian?.principal) || guardians[0] || null;
+  const scanLoggedRef = React.useRef<Record<string, boolean>>({});
+
+  const normalizePhone = (phone?: string) => String(phone || '').replace(/\D/g, '');
+
+  const handleCallPrimary = async () => {
+    if (!primaryGuardian?.phone) {
+      Alert.alert('Sem contato', 'Nao existe telefone principal cadastrado.');
+      return;
+    }
+    const url = `tel:${primaryGuardian.phone}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) throw new Error('cannot-open');
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Erro', 'Nao foi possivel capturar a localização.');
+    } finally {
+      setSendingLocation(false);
+    }
   };
 
-  const handleBlockTag = () => {
-    Alert.alert(
-      'Bloquear Tag',
-      'Deseja bloquear a tag da criança? Isso impedirá novas leituras até que seja desbloqueada.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Bloquear',
-          style: 'destructive',
-          onPress: () => { },
-        },
-      ]
-    );
+  const handleWhatsappPrimary = async () => {
+    if (!primaryGuardian?.phone) {
+      Alert.alert('Sem contato', 'Nao existe telefone principal cadastrado.');
+      return;
+    }
+    if (!primaryGuardian?.whatsapp) {
+      Alert.alert('WhatsApp indisponivel', 'O contato principal nao possui WhatsApp habilitado.');
+      return;
+    }
+
+    const phone = normalizePhone(primaryGuardian.phone);
+    const url = `https://wa.me/55${phone}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) throw new Error('cannot-open');
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Erro', 'Nao foi possivel capturar a localização.');
+    } finally {
+      setSendingLocation(false);
+    }
   };
+
+  const handleSendLocation = async () => {
+    if (sendingLocation) return;
+    setLocationStatus(null);
+    setSendingLocation(true);
+    const childName = child?.name || 'Criança';
+    const ownerId = (child as any)?.ownerId;
+    if (!ownerId || !child?.id) {
+      setLocationStatus({ type: 'error', message: 'Nao foi possivel identificar o cadastro para enviar a localização.' });
+      Alert.alert('Erro', 'Nao foi possivel identificar o cadastro para gravar a localização.');
+      setSendingLocation(false);
+      return;
+    }
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setLocationStatus({ type: 'error', message: 'Permissao de localização negada.' });
+      Alert.alert('Permissao negada', 'Permita acesso a localização para enviar ao responsavel.');
+      setSendingLocation(false);
+      return;
+    }
+
+    try {
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const lat = current.coords.latitude.toFixed(5);
+      const lng = current.coords.longitude.toFixed(5);
+      const when = new Date();
+      const hour = when.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const locationLabel = `Lat ${lat}, Lng ${lng}`;
+
+      await createChildEvent(ownerId, {
+        type: 'location',
+        childId: child?.id,
+        childName,
+        location: locationLabel,
+        message: `Localização de ${childName} enviada as ${hour}.`,
+        latitude: Number(lat),
+        longitude: Number(lng),
+        timestamp: when,
+      });
+
+      setLocationStatus({ type: 'success', message: `Localização enviada com sucesso (${locationLabel}).` });
+      Alert.alert('Localização enviada', `A localização foi enviada ao responsavel.\n${locationLabel}`);
+    } catch {
+      setLocationStatus({ type: 'error', message: 'Falha ao enviar localização. Tente novamente.' });
+      Alert.alert('Erro', 'Nao foi possivel capturar a localização.');
+    } finally {
+      setSendingLocation(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const ownerId = (child as any)?.ownerId;
+    if (!ownerId || !child?.id) return;
+    if (scanLoggedRef.current[child.id]) return;
+
+    scanLoggedRef.current[child.id] = true;
+
+    const now = new Date();
+    const hour = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    createChildEvent(ownerId, {
+      type: 'scan',
+      childId: child.id,
+      childName: child.name || 'Criança',
+      message: `A tag de ${child.name || 'Criança'} foi escaneada às ${hour}.`,
+      timestamp: now,
+    }).catch((err) => {
+      console.error('failed to create scan event', err);
+      scanLoggedRef.current[child.id] = false;
+    });
+  }, [child?.id, child?.name]);
+
+  if (resolvingChild) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="small" color={colors.primary[600]} />
+          <Text style={styles.emptyStateText}>Buscando perfil...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!child || profileNotFound) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle-outline" size={30} color={colors.status.alert} />
+          <Text style={styles.emptyStateTitle}>Perfil nao encontrado</Text>
+          <Text style={styles.emptyStateText}>O perfil pode ter sido removido ou o link esta invalido.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.neutral.text.primary} />
+          <TouchableOpacity style={styles.sendLocationButton} onPress={handleSendLocation}>
+            <Ionicons name="location-outline" size={16} color={colors.secondary[700]} />
+            <Text style={styles.sendLocationText}>Enviar localização</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Perfil da Criança</Text>
-          <View style={{ width: 40 }} />
         </View>
 
-        {/* Profile Card */}
+        {locationStatus && (
+          <View
+            style={[
+              styles.locationStatusBox,
+              locationStatus.type === 'success' ? styles.locationStatusSuccess : styles.locationStatusError,
+            ]}
+          >
+            <Text
+              style={[
+                styles.locationStatusText,
+                locationStatus.type === 'success' ? styles.locationStatusTextSuccess : styles.locationStatusTextError,
+              ]}
+            >
+              {locationStatus.message}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Ionicons name="person" size={40} color={colors.neutral.white} />
           </View>
           <Text style={styles.name}>{child.name}</Text>
           <Text style={styles.age}>{child.age} anos</Text>
-          <View style={styles.statusContainer}>
-            <StatusIndicator
-              status={child.tagStatus === 'active' ? 'active' : 'blocked'}
-              label={child.tagStatus === 'active' ? 'Tag Ativa' : 'Tag Bloqueada'}
-              size="large"
-            />
-          </View>
         </View>
 
-        {/* Tag Info */}
-        <Card title="Informações da Tag">
-          <View style={styles.infoRow}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="radio-button-on" size={20} color={colors.primary[500]} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>ID da Tag</Text>
-              <Text style={styles.infoValue}>CUK-2024-MAR-001</Text>
-            </View>
-          </View>
+        <View style={styles.contactActions}>
+          <Button
+            title="Ligar"
+            onPress={handleCallPrimary}
+            variant="primary"
+            size="small"
+            style={styles.contactButtonLigar}
+            disabled={!primaryGuardian?.phone}
+          />
+          <Button
+            title="WhatsApp"
+            onPress={handleWhatsappPrimary}
+            variant="success"
+            size="small"
+            style={styles.contactButtonWhatsapp}
+            disabled={!primaryGuardian?.phone || !primaryGuardian?.whatsapp}
+          />
+        </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="qr-code" size={20} color={colors.secondary[500]} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Tipo</Text>
-              <Text style={styles.infoValue}>NFC + QR Code</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="calendar" size={20} color={colors.status.active} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Última Leitura</Text>
-              <Text style={styles.infoValue}>Hoje, 14:32</Text>
-            </View>
-          </View>
+        <Card title="Responsáveis" subtitle={primaryGuardian ? `Principal: ${primaryGuardian.name}` : 'Nenhum contato cadastrado'}>
+          {guardians.length > 0 ? (
+            guardians.map((guardian, index) => (
+              <View key={`guardian-${index}`} style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name={guardian.principal ? 'star' : 'person'} size={20} color={guardian.principal ? colors.secondary[600] : colors.primary[500]} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoValue}>
+                    {guardian.name || 'Responsavel sem nome'} {guardian.principal ? '(Principal)' : ''}
+                  </Text>
+                  <Text style={styles.infoLabel}>{guardian.phone || 'Telefone nao informado'}</Text>
+                  <Text style={styles.infoLabel}>WhatsApp: {guardian.whatsapp ? 'Sim' : 'Nao'}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.infoLabel}>Nenhum responsavel cadastrado.</Text>
+          )}
         </Card>
 
-        {/* Medical Info - Premium Only */}
         <Card
           title="Dados Médicos"
-          subtitle={plan !== 'premium' ? 'Disponível no Premium' : 'Informações de emergência'}
-          locked={plan !== 'premium'}
+          subtitle={plan === 'free' ? 'Disponivel no Plus/Premium' : 'Informacoes de emergência'}
+          locked={plan === 'free'}
         >
-          {plan === 'premium' && child.medicalInfo && (
+          {plan !== 'free' && child.medicalInfo && (
             <>
               <View style={styles.infoRow}>
                 <View style={styles.infoIcon}>
-                  <Ionicons name="water" size={20} color={colors.status.alert} />
+                  <Ionicons name="accessibility" size={20} color={colors.status.alert} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Tipo Sanguíneo</Text>
-                  <Text style={styles.infoValue}>{child.medicalInfo.bloodType}</Text>
+                  <Text style={styles.infoLabel}>PCD</Text>
+                  <Text style={styles.infoValue}>{child.medicalInfo.pcd ? 'Sim' : 'Nao'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoRow}>
                 <View style={styles.infoIcon}>
-                  <Ionicons name="warning" size={20} color={colors.status.warning} />
+                  <Ionicons name="medkit" size={20} color={colors.status.warning} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Alergias</Text>
-                  <Text style={styles.infoValue}>{child.medicalInfo.allergies?.join(', ') || 'Nenhuma'}</Text>
+                  <Text style={styles.infoLabel}>Planos de saude</Text>
+                  <Text style={styles.infoValue}>{child.medicalInfo.healthPlans || 'Nao informado'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoRow}>
                 <View style={styles.infoIcon}>
-                  <Ionicons name="medical" size={20} color={colors.secondary[500]} />
+                  <Ionicons name="document-text" size={20} color={colors.secondary[500]} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Contato de Emergência</Text>
-                  <Text style={styles.infoValue}>{child.medicalInfo.emergencyContact}</Text>
+                  <Text style={styles.infoLabel}>Outras informacoes</Text>
+                  <Text style={styles.infoValue}>{child.medicalInfo.otherInfo || 'Nao informado'}</Text>
                 </View>
               </View>
             </>
           )}
         </Card>
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <Button
-            title={emergencyMode ? 'Desativar Emergência' : 'Modo Emergência'}
-            onPress={handleEmergencyMode}
-            variant={emergencyMode ? 'success' : 'danger'}
-            size="large"
-            style={styles.emergencyButton}
-          />
-
-          {plan !== 'free' && (
-            <Button
-              title="Bloquear Tag"
-              onPress={handleBlockTag}
-              variant="outline"
-              size="large"
-              style={styles.blockButton}
-            />
-          )}
-        </View>
-
-        {/* Emergency Mode Active */}
-        {emergencyMode && (
-          <View style={styles.emergencyBanner}>
-            <Ionicons name="alert" size={24} color={colors.neutral.white} />
-            <View style={styles.emergencyInfo}>
-              <Text style={styles.emergencyTitle}>MODO EMERGÊNCIA ATIVO</Text>
-              <Text style={styles.emergencyText}>Todos os responsáveis foram notificados</Text>
-            </View>
-          </View>
-        )}
+        <Footer />
       </ScrollView>
+      {sendingLocation && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingOverlayCard}>
+            <ActivityIndicator size="large" color={colors.primary[600]} />
+            <Text style={styles.loadingOverlayText}>Enviando localização...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -244,11 +366,51 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   backButton: {
     padding: spacing.sm,
+  },
+  sendLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: colors.secondary[100],
+    borderRadius: borderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  sendLocationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.secondary[700],
+  },
+  locationStatusBox: {
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+  },
+  locationStatusSuccess: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+  },
+  locationStatusError: {
+    backgroundColor: '#ffebee',
+    borderColor: '#ffcdd2',
+  },
+  locationStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  locationStatusTextSuccess: {
+    color: colors.primary[700],
+  },
+  locationStatusTextError: {
+    color: colors.status.alert,
   },
   title: {
     fontSize: 18,
@@ -318,6 +480,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: spacing.sm,
   },
+  contactActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  contactButton: {
+    flex: 1,
+  },
+  contactButtonLigar: {
+    flex: 1,
+    backgroundColor: colors.secondary[500],
+  },
+  contactButtonWhatsapp: {
+    flex: 1,
+    backgroundColor: colors.primary[500],
+  },
   emergencyButton: {
     marginBottom: spacing.sm,
   },
@@ -347,4 +525,48 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 2,
   },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.neutral.text.primary,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.neutral.text.secondary,
+    textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingOverlayCard: {
+    backgroundColor: colors.neutral.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+    ...shadows.medium,
+  },
+  loadingOverlayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+  },
 });
+
+

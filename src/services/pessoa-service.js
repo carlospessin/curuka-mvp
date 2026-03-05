@@ -18,6 +18,7 @@ import { db, storage } from "../config/firebase.js";
 
 const pessoasCollection = collection(db, "pessoas");
 const childrenCollection = collection(db, "children");
+const childEventsCollection = collection(db, "childEvents");
 
 async function uploadPessoaFoto(file, userId, pessoaId) {
   if (!file) {
@@ -159,12 +160,13 @@ function mapChildSnapshot(snapshot) {
     age: Number(data.age || 0),
     photo: data.photo || null,
     slug: data.slug || undefined,
-    tagStatus: data.tagStatus || "inactive",
+    tagStatus: data.tagStatus || "active",
     guardians: Array.isArray(data.guardians)
       ? data.guardians.map((guardian) => ({
         name: guardian?.name || "",
         phone: guardian?.phone || "",
         whatsapp: Boolean(guardian?.whatsapp),
+        principal: Boolean(guardian?.principal),
       }))
       : [],
     medicalInfo: {
@@ -221,22 +223,14 @@ export function watchChildrenList(ownerId, onData, onError) {
   );
 }
 
-function toSlug(value = "") {
-  return String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export async function saveChildProfile(ownerId, childData, childId) {
-  // ensure there's always a slug; only generate when creating a new
-  // document or when the incoming data explicitly provides one.
-  const makeSlug = (name = 'child', suffix = '') => {
-    let base = toSlug(name);
-    if (!base) base = 'child';
-    return suffix ? `${base}-${suffix}` : base;
+  // Ensure slugs do not expose child names. We generate a compact
+  // identifier-only slug from the document id.
+  const makeSlug = (idToken = '') => {
+    const token = String(idToken)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    return token ? `c-${token}` : `c-${Date.now().toString(36)}`;
   };
 
   if (childId) {
@@ -244,6 +238,7 @@ export async function saveChildProfile(ownerId, childData, childId) {
     // explicitly passes a `slug` field in childData.
     const updatePayload = {
       ownerId,
+      publicProfile: childData.publicProfile ?? true,
       ...childData,
       updatedAt: serverTimestamp(),
     };
@@ -264,6 +259,7 @@ export async function saveChildProfile(ownerId, childData, childId) {
       // create document first to obtain id for unique slug suffix
       const docRef = await addDoc(childrenCollection, {
         ownerId,
+        publicProfile: childData.publicProfile ?? true,
         ...childData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -271,7 +267,7 @@ export async function saveChildProfile(ownerId, childData, childId) {
 
       // if the caller didn't provide a slug, generate one now
       if (!childData.slug) {
-        const generated = makeSlug(childData.name, docRef.id.slice(0, 5));
+        const generated = makeSlug(docRef.id.slice(0, 12));
         await updateDoc(docRef, { slug: generated, updatedAt: serverTimestamp() });
       }
 
@@ -303,11 +299,87 @@ export async function getChildBySlug(ownerId, slug) {
   return docSnap ? mapChildSnapshot(docSnap) : null;
 }
 
+export async function getChildByPublicSlug(slug) {
+  const q = query(
+    childrenCollection,
+    where('slug', '==', slug),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  const docSnap = snapshot.docs[0];
+  return docSnap ? mapChildSnapshot(docSnap) : null;
+}
+
 export async function setChildTagStatus(childId, tagStatus) {
   await updateDoc(doc(db, "children", childId), {
     tagStatus,
     updatedAt: serverTimestamp(),
   });
+}
+
+function mapChildEventSnapshot(snapshot) {
+  if (!snapshot) return null;
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    ownerId: data.ownerId || '',
+    type: data.type || 'scan',
+    childId: data.childId || '',
+    childName: data.childName || 'Crianca',
+    message: data.message || '',
+    location: data.location || '',
+    latitude: typeof data.latitude === 'number' ? data.latitude : undefined,
+    longitude: typeof data.longitude === 'number' ? data.longitude : undefined,
+    read: Boolean(data.read),
+    timestamp: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+  };
+}
+
+export async function createChildEvent(ownerId, eventData) {
+  const payload = {
+    ownerId,
+    type: eventData.type || 'scan',
+    childId: eventData.childId || '',
+    childName: eventData.childName || 'Crianca',
+    message: eventData.message || '',
+    location: eventData.location || '',
+    latitude: typeof eventData.latitude === 'number' ? eventData.latitude : null,
+    longitude: typeof eventData.longitude === 'number' ? eventData.longitude : null,
+    read: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const refDoc = await addDoc(childEventsCollection, payload);
+  return refDoc.id;
+}
+
+export function watchChildEvents(ownerId, onData, onError) {
+  const q = query(childEventsCollection, where('ownerId', '==', ownerId));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const events = snapshot.docs
+        .map(mapChildEventSnapshot)
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      onData(events);
+    },
+    (error) => {
+      if (onError) onError(error);
+    }
+  );
+}
+
+export async function markChildEventsAsRead(ownerId) {
+  const q = query(childEventsCollection, where('ownerId', '==', ownerId), where('read', '==', false));
+  const snapshot = await getDocs(q);
+  await Promise.all(
+    snapshot.docs.map((eventDoc) =>
+      updateDoc(eventDoc.ref, {
+        read: true,
+        updatedAt: serverTimestamp(),
+      })
+    )
+  );
 }
 
 // ----- user settings helpers ------------------------------------------------

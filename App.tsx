@@ -136,20 +136,18 @@ export default function App() {
         <StatusBar style="dark" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {isAuthenticated ? (
-            <>
-              <Stack.Screen name="Main" component={TabNavigator} />
-              <Stack.Screen
-                name="ChildProfile"
-                component={ChildProfileScreen}
-                options={{
-                  presentation: 'modal',
-                  animation: 'slide_from_bottom',
-                }}
-              />
-            </>
+            <Stack.Screen name="Main" component={TabNavigator} />
           ) : (
             <Stack.Screen name="Login" component={LoginScreen} />
           )}
+          <Stack.Screen
+            name="ChildProfile"
+            component={ChildProfileScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </AppProvider>

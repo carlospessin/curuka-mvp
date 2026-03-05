@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserState, PlanType, Child, ScanActivity, ProtectionScore, PLAN_LIMITS } from '../types';
+import { UserState, PlanType, Child, ScanActivity, ProtectionScore, PLAN_LIMITS, AppNotification } from '../types';
 import { getAuth } from 'firebase/auth';
-import { watchChildrenList, watchUserSettings, saveUserSettings } from '../services/pessoa-service.js';
+import { watchChildrenList, watchUserSettings, saveUserSettings, watchChildEvents } from '../services/pessoa-service.js';
 
 interface AppContextType {
   state: UserState;
@@ -9,6 +9,9 @@ interface AppContextType {
   updateProtectionScore: () => void;
   toggleEmergencyMode: () => void;
   emergencyMode: boolean;
+  unreadNotifications: number;
+  addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'> & { timestamp?: Date }) => void;
+  markNotificationsRead: () => void;
   setUserSettings: (settings: Partial<Pick<UserState, 'notificationsEnabled' | 'smsAlertsEnabled'>>) => void;
 }
 
@@ -54,10 +57,13 @@ const initialProtectionScore: ProtectionScore = {
   ]
 };
 
+const initialNotifications: AppNotification[] = [];
+
 const initialState: UserState = {
   plan: 'free',
   children: initialChildren,
   recentScans,
+  notifications: initialNotifications,
   protectionScore: initialProtectionScore,
   guardians: 1,
   maxGuardians: 1,
@@ -69,6 +75,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<UserState>(initialState);
+  const unreadNotifications = state.notifications.filter((item) => !item.read).length;
 
   // keep local children in sync with Firestore. we need to handle the
   // case where Auth may not have finished initializing when this hook
@@ -77,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const auth = getAuth();
     let unsubChildren: (() => void) | undefined;
+    let unsubEvents: (() => void) | undefined;
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       // stop previous watcher when user changes
@@ -84,10 +92,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         unsubChildren();
         unsubChildren = undefined;
       }
+      if (unsubEvents) {
+        unsubEvents();
+        unsubEvents = undefined;
+      }
 
       if (!user?.uid) {
         // no user; clear children list
-        setState((prev) => ({ ...prev, children: [] }));
+        setState((prev) => ({ ...prev, children: [], notifications: [] }));
         return;
       }
 
@@ -98,6 +110,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         },
         (err: unknown) => {
           console.error('error watching children list', err);
+        }
+      );
+
+      unsubEvents = watchChildEvents(
+        user.uid,
+        (events: AppNotification[]) => {
+          setState((prev) => ({ ...prev, notifications: events }));
+        },
+        (err: unknown) => {
+          console.error('error watching child events', err);
         }
       );
 
@@ -133,6 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const origUnsub = unsubChildren;
         unsubChildren = () => {
           origUnsub();
+          if (unsubEvents) unsubEvents();
           unsubSettings();
         };
       }
@@ -141,6 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribeAuth();
       if (unsubChildren) unsubChildren();
+      if (unsubEvents) unsubEvents();
     };
   }, []);
   const [emergencyMode, setEmergencyMode] = useState(false);
@@ -197,8 +221,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEmergencyMode(prev => !prev);
   };
 
+  const addNotification: AppContextType['addNotification'] = (notification) => {
+    // Kept as local fallback. Primary notification source is Firestore child_events.
+    const createdAt = notification.timestamp ?? new Date();
+    setState((prev) => ({
+      ...prev,
+      notifications: [
+        {
+          id: `${notification.type}-${createdAt.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+          ...notification,
+          timestamp: createdAt,
+          read: false,
+        },
+        ...prev.notifications,
+      ],
+    }));
+  };
+
+  const markNotificationsRead = () => {
+    setState((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((notification) => ({ ...notification, read: true })),
+    }));
+  };
+
   return (
-    <AppContext.Provider value={{ state, setPlan, updateProtectionScore, toggleEmergencyMode, emergencyMode, setUserSettings }}>
+    <AppContext.Provider
+      value={{
+        state,
+        setPlan,
+        updateProtectionScore,
+        toggleEmergencyMode,
+        emergencyMode,
+        unreadNotifications,
+        addNotification,
+        markNotificationsRead,
+        setUserSettings,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

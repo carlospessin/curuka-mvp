@@ -11,6 +11,7 @@ export interface Child {
     name: string;
     phone: string;
     whatsapp: boolean;
+    principal?: boolean;
   }[];
   medicalInfo?: {
     bloodType?: string;
@@ -32,6 +33,22 @@ export interface ScanActivity {
   scannerId?: string;
 }
 
+export type NotificationType = 'scan' | 'location';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  ownerId?: string;
+  childId?: string;
+  childName: string;
+  message: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  timestamp: Date;
+  read: boolean;
+}
+
 export interface ProtectionScore {
   score: number;
   factors: {
@@ -46,6 +63,7 @@ export interface UserState {
   plan: PlanType;
   children: Child[];
   recentScans: ScanActivity[];
+  notifications: AppNotification[];
   protectionScore: ProtectionScore;
   guardians: number;
   maxGuardians: number;
