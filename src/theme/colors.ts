@@ -51,6 +51,13 @@ export const colors = {
     plus: '#2196F3',
     premium: '#FFD700',
   },
+
+  greenSoft: '#4CAF50',
+  greenVibrant: '#00C853',
+  greenDark: '#388E3C',
+  grayText: '#757575',
+  grayMedium: '#E0E0E0',
+  white: '#FFFFFF',
 };
 
 export const shadows = {
@@ -93,3 +100,13 @@ export const borderRadius = {
   xl: 20,
   full: 9999,
 };
+
+export const radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 28,
+  full: 999,
+};
+

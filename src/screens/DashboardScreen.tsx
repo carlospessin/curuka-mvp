@@ -21,11 +21,14 @@ import { StatusIndicator } from '../components/StatusIndicator';
 import { ProtectionScoreCircle } from '../components/ProtectionScoreCircle';
 import { PlanBadge } from '../components/PlanBadge';
 import { useApp } from '../context/AppContext';
-import { colors, spacing, borderRadius, shadows } from '../theme/colors';
+import { colors, spacing, borderRadius, shadows, radius } from '../theme/colors';
 import { getAuth } from 'firebase/auth';
 import type { Child } from '../types';
 import { removeChildProfile, saveChildProfile, setChildTagStatus, watchChildrenList } from '../services/pessoa-service.js';
 import { Platform } from 'react-native';
+import ShieldIcon from '../components/ShieldIcon';
+import StatusPulse from '../components/StatusPulse';
+
 
 type ChildMedicalInfo = {
   pcd?: boolean;
@@ -331,31 +334,15 @@ export function DashboardScreen() {
         </View>
 
         <Card style={styles.protectionCard}>
-          <View style={styles.protectionHeader}>
-            <View style={styles.protectionInfo}>
-              <StatusIndicator
-                status={protectionScore.score >= 90 ? 'protected' : 'partial'}
-                label={protectionScore.score >= 90 ? 'Protecao Ativa' : 'Protecao Parcial'}
-                size="large"
-              />
-              <Text style={styles.protectionDescription}>
-                {protectionScore.score >= 90
-                  ? 'Sua familia esta bem protegida'
-                  : 'Alguns recursos podem melhorar sua protecao'}
-              </Text>
+          <View style={styles.protectionTop}>
+            <ShieldIcon size={48} color={colors.greenSoft} />
+            <View style={styles.protectionTextWrap}>
+              <Text style={styles.protectionTitle}>Proteção ativa</Text>
+              <Text style={styles.protectionDesc}>Sistema funcionando normalmente</Text>
             </View>
-            <ProtectionScoreCircle score={protectionScore.score} size={90} />
           </View>
 
-          {protectionScore.score < 90 && (
-            <Button
-              title="Melhorar Protecao"
-              onPress={handleUpgrade}
-              variant="primary"
-              size="small"
-              style={styles.upgradeButton}
-            />
-          )}
+
 
           <View style={styles.scoreFactors}>
             {dynamicFactors.map((factor, index) => (
@@ -471,7 +458,7 @@ export function DashboardScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.tagPill} onPress={() => toggleTagStatus(c.id, c.tagStatus)}>
+                {/* <TouchableOpacity style={styles.tagPill} onPress={() => toggleTagStatus(c.id, c.tagStatus)}>
                   <Text style={styles.tagPillText}>
                     {c.tagStatus === 'active' ? 'Desativar Tag' : 'Ativar Tag'}
                   </Text>
@@ -481,7 +468,7 @@ export function DashboardScreen() {
                     trackColor={{ false: colors.neutral.border, true: colors.primary[300] }}
                     thumbColor={c.tagStatus === 'active' ? colors.primary[600] : colors.neutral.text.muted}
                   />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
             ))
           ) : (
@@ -1232,5 +1219,47 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  protectionAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 6,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    backgroundColor: colors.greenSoft,
+    opacity: 0.18,
+  },
+  protectionTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  protectionTextWrap: { flex: 1 },
+  protectionTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.greenDark,
+    letterSpacing: 0.2,
+  },
+  protectionDesc: {
+    fontSize: 14,
+    color: colors.grayText,
+    marginTop: 2,
+  },
+  protectionIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.grayMedium,
+    gap: 10,
+  },
+  protectionStatus: {
+    fontSize: 13,
+    color: colors.greenSoft,
+    fontWeight: '600',
   },
 });
