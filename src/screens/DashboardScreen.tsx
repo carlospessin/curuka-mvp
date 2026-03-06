@@ -217,7 +217,7 @@ export function DashboardScreen() {
   const buildChildProfileLink = (profile: ChildProfile | null) => {
     if (!profile?.slug) return null;
 
-    return `${PUBLIC_WEB_BASE_URL}/${profile.slug}`;
+    return `${PUBLIC_WEB_BASE_URL}/c/${profile.slug}`;
   };
 
   const checkNfcStatus = async () => {

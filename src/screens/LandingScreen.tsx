@@ -20,7 +20,7 @@ export function LandingScreen({ navigation }: { navigation: any }) {
 
   const downloadAPK = () => {
     if (typeof window !== "undefined") {
-      window.location.href = "/curuka.apk";
+      window.location.href = "/apk/curuka-1.0.0.apk";
     }
   };
 
@@ -173,7 +173,7 @@ export function LandingScreen({ navigation }: { navigation: any }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: '#faf7f6',
   },
 
   /* ── Navbar ── */
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    maxWidth: 480,
+    maxWidth: 400,
   },
   mockupGlow: {
     position: "absolute",
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   mockupImg: {
     width: 400,
-    height: 460,
+    height: 600,
   },
 
   /* ── How it works ── */
