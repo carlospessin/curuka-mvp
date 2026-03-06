@@ -236,6 +236,10 @@ export function ChildProfileScreen() {
             <Ionicons name="location-outline" size={16} color={colors.secondary[700]} />
             <Text style={styles.sendLocationText}>Enviar localização</Text>
           </TouchableOpacity>
+          {/* <View style={styles.profileCard}>
+            <Text style={styles.infoText}>Esta criança está identificada por um sistema de segurança.
+              Se ela estiver perdida, entre em contato com os responsáveis.</Text>
+          </View> */}
         </View>
 
         {locationStatus && (
@@ -313,12 +317,8 @@ export function ChildProfileScreen() {
           )}
         </Card>
 
-        <Card
-          title="Dados Médicos"
-          subtitle={plan === 'free' ? 'Disponivel no Plus/Premium' : 'Informacoes de emergência'}
-          locked={plan === 'free'}
-        >
-          {plan !== 'free' && child.medicalInfo && (
+        <Card title="Dados Médicos" >
+          {child.medicalInfo && (
             <>
               <View style={styles.infoRow}>
                 <View style={styles.infoIcon}>
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -396,11 +396,23 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     paddingVertical: 6,
     paddingHorizontal: 10,
+    marginBottom: spacing.md,
   },
   sendLocationText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.secondary[700],
+  },
+  infoTextContainer: {
+    borderRadius: borderRadius.full,
+    color: colors.neutral.white,
+  },
+  infoText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.neutral.text.primary,
+    display: 'flex',
+    textAlign: 'center',
   },
   locationStatusBox: {
     borderRadius: borderRadius.sm,

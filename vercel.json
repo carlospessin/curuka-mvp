@@ -1,21 +1,9 @@
 {
-  "buildCommand": "node scripts/export-web-with-landing.cjs",
+  "buildCommand": "npx expo export --platform web",
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/app",
-      "destination": "/app/index.html"
-    },
-    {
-      "source": "/app/:path*",
-      "destination": "/app/index.html"
-    },
-    {
-      "source": "/c-:slug*",
-      "destination": "/app/index.html"
-    },
-    {
-      "source": "/:path((?!_expo|assets|app|c-|.*\\..*).*)",
+      "source": "/:path((?!_expo|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

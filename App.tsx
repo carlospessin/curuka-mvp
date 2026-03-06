@@ -26,6 +26,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TermsScreen } from "./src/screens/TermsScreen";
+import { LandingScreen } from './src/screens/LandingScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -131,7 +132,8 @@ function AppShell({
     ],
     config: {
       screens: {
-        Login: 'app/login',
+        Landing: '',
+        Login: 'login',
         Main: {
           path: 'app',
           screens: {
@@ -143,7 +145,7 @@ function AppShell({
         },
         Terms: 'app/terms',
         Profile: 'app/profile',
-        ChildProfile: ':slug',
+        ChildProfile: 'c/:slug',
       },
     },
   };
@@ -154,6 +156,11 @@ function AppShell({
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={TabNavigator} />
+        ) : Platform.OS === 'web' ? (
+          <>
+            <Stack.Screen name="Landing" component={LandingScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

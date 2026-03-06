@@ -498,6 +498,284 @@ export function DashboardScreen() {
     }
   };
 
+  const childFormSheet = (
+    <View style={styles.modalBackdrop}>
+      <View style={styles.modalCard}>
+        <Text style={styles.modalTitle}>{editingChildId ? 'Editar Criança' : 'Cadastrar Criança'}</Text>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={styles.inputLabel}>Foto (URL)</Text>
+          <TextInput
+            value={formData.photo}
+            onChangeText={(value) => setFormData((prev) => ({ ...prev, photo: value }))}
+            placeholder="https://..."
+            style={styles.input}
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.inputLabel}>Nome</Text>
+          <TextInput
+            value={formData.name}
+            onChangeText={(value) => setFormData((prev) => ({ ...prev, name: value }))}
+            placeholder="Nome da criança"
+            style={styles.input}
+          />
+
+          <Text style={styles.inputLabel}>Idade</Text>
+          <TextInput
+            value={formData.age}
+            onChangeText={(value) => setFormData((prev) => ({ ...prev, age: value }))}
+            placeholder="Ex: 7"
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          <Text style={styles.sectionTitle}>Responsáveis</Text>
+          {!canAddMoreGuardians && (
+            <Text style={styles.lockedHint}>Mais responsáveis? Disponível no Plus/Premium</Text>
+          )}
+
+          {formData.guardians.map((guardian, index) => (
+            <View key={`guardian-${index}`} style={styles.guardianCard}>
+              <View style={styles.guardianHeader}>
+                <Text style={styles.guardianTitle}>Responsável {index + 1}</Text>
+                {canAddMoreGuardians && index > 0 && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        guardians: prev.guardians
+                          .filter((_, guardianIndex) => guardianIndex !== index)
+                          .map((item, newIndex, arr) => {
+                            if (arr.length === 1) {
+                              return { ...item, principal: true };
+                            }
+                            const hasPrincipal = arr.some((g) => g.principal);
+                            if (!hasPrincipal && newIndex === 0) {
+                              return { ...item, principal: true };
+                            }
+                            return item;
+                          }),
+                      }))
+                    }
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <Text style={styles.inputLabel}>Responsável</Text>
+              <TextInput
+                value={guardian.name}
+                onChangeText={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    guardians: prev.guardians.map((item, guardianIndex) =>
+                      guardianIndex === index ? { ...item, name: value } : item
+                    ),
+                  }))
+                }
+                placeholder="Nome do responsável"
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>Telefone</Text>
+              <TextInput
+                value={guardian.phone}
+                onChangeText={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    guardians: prev.guardians.map((item, guardianIndex) =>
+                      guardianIndex === index ? { ...item, phone: value } : item
+                    ),
+                  }))
+                }
+                placeholder="(11) 99999-9999"
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>WhatsApp</Text>
+              <View style={styles.pcdButtons}>
+                <TouchableOpacity
+                  style={[styles.optionButton, guardian.whatsapp && styles.optionButtonActive]}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      guardians: prev.guardians.map((item, guardianIndex) =>
+                        guardianIndex === index ? { ...item, whatsapp: true } : item
+                      ),
+                    }))
+                  }
+                >
+                  <Text style={[styles.optionButtonText, guardian.whatsapp && styles.optionButtonTextActive]}>
+                    Sim
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.optionButton, !guardian.whatsapp && styles.optionButtonActive]}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      guardians: prev.guardians.map((item, guardianIndex) =>
+                        guardianIndex === index ? { ...item, whatsapp: false } : item
+                      ),
+                    }))
+                  }
+                >
+                  <Text style={[styles.optionButtonText, !guardian.whatsapp && styles.optionButtonTextActive]}>
+                    Não
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Contato principal</Text>
+              <View style={styles.pcdButtons}>
+                <TouchableOpacity
+                  style={[styles.optionButton, guardian.principal && styles.optionButtonActive]}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      guardians: prev.guardians.map((item, guardianIndex) => ({
+                        ...item,
+                        principal: guardianIndex === index,
+                      })),
+                    }))
+                  }
+                >
+                  <Text style={[styles.optionButtonText, guardian.principal && styles.optionButtonTextActive]}>
+                    Sim
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.optionButton, !guardian.principal && styles.optionButtonActive]}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      guardians: prev.guardians.map((item, guardianIndex) => {
+                        if (guardianIndex === index && prev.guardians.length > 1) {
+                          return { ...item, principal: false };
+                        }
+                        if (prev.guardians.length === 1) {
+                          return { ...item, principal: true };
+                        }
+                        return item;
+                      }),
+                    }))
+                  }
+                >
+                  <Text style={[styles.optionButtonText, !guardian.principal && styles.optionButtonTextActive]}>
+                    Não
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+
+          {canAddMoreGuardians && (
+            <TouchableOpacity
+              style={styles.addGuardianButton}
+              onPress={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  guardians: [
+                    ...prev.guardians.map((item, index) => ({
+                      ...item,
+                      principal: prev.guardians.length === 0 ? index === 0 : item.principal,
+                    })),
+                    { ...createEmptyGuardian(), principal: false },
+                  ],
+                }))
+              }
+            >
+              <Ionicons name="add-circle-outline" size={18} color={colors.primary[600]} />
+              <Text style={styles.addGuardianText}>Adicionar responsável</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.medicalHeader}
+            onPress={() => setMedicalInfoExpanded((prev) => !prev)}
+            activeOpacity={0.8}
+          >
+            <View>
+              <Text style={styles.sectionTitle}>Informações médicas</Text>
+              {!canEditMedicalInfo && <Text style={styles.lockedHint}>Disponível no Plus/Premium</Text>}
+            </View>
+            <Ionicons
+              name={medicalInfoExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.neutral.text.secondary}
+            />
+          </TouchableOpacity>
+
+          {medicalInfoExpanded && (
+            <View style={!canEditMedicalInfo && styles.disabledSection}>
+              <View style={styles.switchRow}>
+                <Text style={styles.inputLabel}>PCD</Text>
+                <View style={styles.pcdButtons}>
+                  <TouchableOpacity
+                    style={[styles.optionButton, formData.pcd && styles.optionButtonActive]}
+                    onPress={() => setFormData((prev) => ({ ...prev, pcd: true }))}
+                    disabled={!canEditMedicalInfo}
+                  >
+                    <Text style={[styles.optionButtonText, formData.pcd && styles.optionButtonTextActive]}>Sim</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.optionButton, !formData.pcd && styles.optionButtonActive]}
+                    onPress={() => setFormData((prev) => ({ ...prev, pcd: false }))}
+                    disabled={!canEditMedicalInfo}
+                  >
+                    <Text style={[styles.optionButtonText, !formData.pcd && styles.optionButtonTextActive]}>Não</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>Planos de saúde</Text>
+              <TextInput
+                value={formData.healthPlans}
+                onChangeText={(value) => setFormData((prev) => ({ ...prev, healthPlans: value }))}
+                placeholder="Unimed, Bradesco, ..."
+                style={styles.input}
+                editable={canEditMedicalInfo}
+              />
+
+              <Text style={styles.inputLabel}>Outras informações</Text>
+              <TextInput
+                value={formData.otherInfo}
+                onChangeText={(value) => setFormData((prev) => ({ ...prev, otherInfo: value }))}
+                placeholder="Informações adicionais"
+                style={[styles.input, styles.textArea]}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                editable={canEditMedicalInfo}
+              />
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.modalActions}>
+          <Button
+            title="Cancelar"
+            onPress={() => setChildModalVisible(false)}
+            variant="outline"
+            size="small"
+            style={styles.modalButton}
+          />
+          <Button
+            title={editingChildId ? 'Salvar' : 'Cadastrar'}
+            onPress={handleSaveChildProfile}
+            loading={savingChild}
+            variant="primary"
+            size="small"
+            style={styles.modalButton}
+          />
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -1438,9 +1716,14 @@ const styles = StyleSheet.create({
     color: colors.neutral.text.muted,
   },
   modalBackdrop: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
+    zIndex: 1000,
   },
   modalCard: {
     backgroundColor: colors.neutral.card,
@@ -1448,6 +1731,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: borderRadius.lg,
     padding: spacing.md,
     maxHeight: '85%',
+    width: '100%',
+    alignSelf: 'center',
   },
   modalTitle: {
     fontSize: 18,
