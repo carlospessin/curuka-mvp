@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   addDoc,
   collection,
   deleteDoc,
@@ -20,6 +22,7 @@ import { db, storage } from "../config/firebase.js";
 const pessoasCollection = collection(db, "pessoas");
 const childrenCollection = collection(db, "children");
 const childEventsCollection = collection(db, "childEvents");
+const pushTokensCollection = collection(db, "pushTokens");
 
 async function uploadPessoaFoto(file, userId, pessoaId) {
   if (!file) {
@@ -433,6 +436,56 @@ export async function saveUserSettings(ownerId, settings) {
     console.error("saveUserSettings failed", err);
     throw err;
   }
+}
+
+function sanitizePushTokenId(token) {
+  return String(token || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+export async function savePushToken(ownerId, token, metadata = {}) {
+  if (!ownerId || !token) {
+    throw new Error("ownerId e token sao obrigatorios.");
+  }
+
+  const tokenRef = doc(pushTokensCollection, sanitizePushTokenId(token));
+  await setDoc(
+    tokenRef,
+    {
+      ownerId,
+      token,
+      ...metadata,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  const settingsRef = doc(db, "settings", ownerId);
+  await setDoc(
+    settingsRef,
+    {
+      pushTokens: arrayUnion(token),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function removePushToken(ownerId, token) {
+  if (!ownerId || !token) {
+    return;
+  }
+
+  await deleteDoc(doc(pushTokensCollection, sanitizePushTokenId(token)));
+
+  const settingsRef = doc(db, "settings", ownerId);
+  await setDoc(
+    settingsRef,
+    {
+      pushTokens: arrayRemove(token),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 export function watchUserSettings(ownerId, onData, onError) {

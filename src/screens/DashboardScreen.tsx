@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusIndicator } from '../components/StatusIndicator';
@@ -100,6 +100,7 @@ export function DashboardScreen() {
 
   const auth = getAuth();
   const user = auth.currentUser;
+  const [userName, setUserName] = useState(user?.displayName?.split(' ')[0] || 'Responsavel');
 
   const [remoteChildren, setRemoteChildren] = useState<ChildProfile[]>([]);
   const [loadingChild, setLoadingChild] = useState(true);
@@ -190,7 +191,12 @@ export function DashboardScreen() {
     return unsubscribe;
   }, [user?.uid]);
 
-  const userName = user?.displayName?.split(' ')[0] || 'Responsavel';
+  useFocusEffect(
+    React.useCallback(() => {
+      const nextName = getAuth().currentUser?.displayName?.split(' ')[0] || 'Responsavel';
+      setUserName(nextName);
+    }, [])
+  );
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();

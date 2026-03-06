@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // @ts-ignore: icon types sometimes missing
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { PlanBadge } from '../components/PlanBadge';
 import { useApp } from '../context/AppContext';
@@ -13,6 +14,7 @@ import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { Footer } from '../components/Footer';
 
 export function SettingsScreen() {
+  const navigation = useNavigation<any>();
   const { state, setUserSettings } = useApp();
   const notifications = state.notificationsEnabled;
   const smsAlerts = state.smsAlertsEnabled;
@@ -52,6 +54,10 @@ export function SettingsScreen() {
     }
   };
 
+  const openEmail = () => {
+    Linking.openURL("mailto:suporte@curuka.com");
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -68,7 +74,7 @@ export function SettingsScreen() {
         {/* Account Section */}
         <Text style={styles.sectionTitle}>Conta</Text>
         <Card>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Profile')}>
             <View style={styles.settingIcon}>
               <Ionicons name="person-outline" size={20} color={colors.primary[500]} />
             </View>
@@ -79,7 +85,7 @@ export function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} onPress={handleAddGuardian}>
+          {/* <TouchableOpacity style={styles.settingItem} onPress={handleAddGuardian}>
             <View style={styles.settingIcon}>
               <Ionicons name="people-outline" size={20} color={colors.secondary[500]} />
             </View>
@@ -90,11 +96,11 @@ export function SettingsScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </Card>
 
         {/* Notifications Section */}
-        <Text style={styles.sectionTitle}>Notificações</Text>
+        {/* <Text style={styles.sectionTitle}>Notificações</Text>
         <Card>
           <View style={styles.settingItem}>
             <View style={styles.settingIcon}>
@@ -152,10 +158,10 @@ export function SettingsScreen() {
               disabled={state.plan === 'free'}
             />
           </View>
-        </Card>
+        </Card> */}
 
         {/* Data Section */}
-        <Text style={styles.sectionTitle}>Dados</Text>
+        {/* <Text style={styles.sectionTitle}>Dados</Text>
         <Card>
           <TouchableOpacity style={styles.settingItem} onPress={handleExportHistory}>
             <View style={styles.settingIcon}>
@@ -182,12 +188,12 @@ export function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
           </TouchableOpacity>
-        </Card>
+        </Card> */}
 
         {/* Support Section */}
         <Text style={styles.sectionTitle}>Suporte</Text>
         <Card>
-          <TouchableOpacity style={styles.settingItem}>
+          {/* <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingIcon}>
               <Ionicons name="help-circle-outline" size={20} color={colors.neutral.text.secondary} />
             </View>
@@ -196,20 +202,33 @@ export function SettingsScreen() {
               <Text style={styles.settingValue}>FAQ e tutoriais</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={openEmail}
+          >
             <View style={styles.settingIcon}>
-              <Ionicons name="mail-outline" size={20} color={colors.neutral.text.secondary} />
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={colors.neutral.text.secondary}
+              />
             </View>
+
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Contato</Text>
               <Text style={styles.settingValue}>suporte@curuka.com</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.neutral.text.muted} />
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.neutral.text.muted}
+            />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate("Terms")}>
             <View style={styles.settingIcon}>
               <Ionicons name="document-text-outline" size={20} color={colors.neutral.text.secondary} />
             </View>
@@ -233,8 +252,10 @@ export function SettingsScreen() {
         </Card>
 
         {/* App Info */}
-        <Footer />
       </ScrollView>
+      <View style={styles.customFooter}>
+        <Footer />
+      </View>
     </SafeAreaView>
   );
 }
@@ -311,5 +332,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.neutral.text.muted,
     marginTop: 4,
+  },
+  customFooter: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xxl,
   },
 });

@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para enviar ao responsavel."
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localizacao para enviar ao responsavel."
       }
     },
     "android": {
@@ -27,14 +27,17 @@
       "permissions": [
         "NFC",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.curuka.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
     },
     "extra": {
       "eas": {
@@ -52,9 +55,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Permita acesso a localização para enviar ao responsavel."
+          "locationWhenInUsePermission": "Permita acesso a localizacao para enviar ao responsavel."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "platforms": [
       "ios",

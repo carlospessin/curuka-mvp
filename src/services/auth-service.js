@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import {
+  deleteUser,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
@@ -8,6 +9,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updateProfile,
 } from "firebase/auth";
 import {
   GoogleSignin,
@@ -44,6 +46,8 @@ function mapAuthError(error, fallbackMessage) {
       return "Falha de conexao. Verifique sua internet e tente novamente.";
     case "auth/too-many-requests":
       return "Muitas tentativas. Tente novamente em instantes.";
+    case "auth/requires-recent-login":
+      return "Por seguranca, faca login novamente antes de excluir a conta.";
     case statusCodes.SIGN_IN_CANCELLED:
       return "Login com Google cancelado.";
     case statusCodes.IN_PROGRESS:
@@ -141,6 +145,37 @@ export async function loginWithGoogleNative() {
 
 export function watchAuthState(callback) {
   return onAuthStateChanged(auth, callback);
+}
+
+export async function updateCurrentUserDisplayName(displayName) {
+  const cleanName = String(displayName || "").trim();
+
+  if (!cleanName) {
+    throw new Error("Informe um nome valido.");
+  }
+
+  if (!auth.currentUser) {
+    throw new Error("Nenhum usuario autenticado.");
+  }
+
+  try {
+    await updateProfile(auth.currentUser, { displayName: cleanName });
+    return auth.currentUser;
+  } catch (error) {
+    throw new Error(mapAuthError(error, "Nao foi possivel atualizar o nome."));
+  }
+}
+
+export async function deleteCurrentUserAccount() {
+  if (!auth.currentUser) {
+    throw new Error("Nenhum usuario autenticado.");
+  }
+
+  try {
+    await deleteUser(auth.currentUser);
+  } catch (error) {
+    throw new Error(mapAuthError(error, "Nao foi possivel excluir a conta."));
+  }
 }
 
 export async function logout() {

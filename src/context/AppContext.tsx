@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { UserState, PlanType, Child, ScanActivity, ProtectionScore, PLAN_LIMITS, AppNotification } from '../types';
 import { getAuth } from 'firebase/auth';
 import { watchChildrenList, watchUserSettings, saveUserSettings, watchChildEvents } from '../services/pessoa-service.js';
+import { db } from '../config/firebase';
+import { doc, setDoc } from "firebase/firestore";
+import { registerForPushNotificationsAsync } from '../services/push-service';
 
 interface AppContextType {
   state: UserState;
@@ -72,6 +75,18 @@ const initialState: UserState = {
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+async function registerPush(user) {
+  const token = await registerForPushNotificationsAsync();
+
+  if (!token) return;
+
+  await setDoc(
+    doc(db, "settings", user.uid),
+    { pushToken: token },
+    { merge: true }
+  );
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<UserState>(initialState);

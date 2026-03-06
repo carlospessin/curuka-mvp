@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curuka • Proteja quem você ama</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+
+        :root {
+            --primary: 134 76 230;
+        }
+
+        .tail-container {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+
+        .logo-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .hero-bg {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .nav-link {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link:hover {
+            color: rgb(16 185 129);
+            transform: translateY(-2px);
+        }
+
+        .step-card {
+            transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .step-card:hover {
+            transform: translateY(-15px);
+            box-shadow: 0 25px 50px -12px rgb(16 185 129);
+        }
+
+        .feature-card {
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .feature-card:hover {
+            transform: scale(1.05);
+            border-color: rgb(16 185 129);
+        }
+
+        .nfc-tag {
+            animation: nfcPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes nfcPulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .section-header {
+            position: relative;
+        }
+
+        .section-header:after {
+            content: '';
+            position: absolute;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(to right, rgb(16 185 129), rgb(14 165 233));
+            bottom: -8px;
+            left: 0;
+            border-radius: 9999px;
+        }
+
+        .phone-mock {
+            box-shadow: 0 0 0 12px #111827,
+                0 0 0 18px #1f2937;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-25px);
+            }
+        }
+
+        .hero-illustration {
+            filter: drop-shadow(0 35px 35px rgb(16 185 129 / 0.3));
+        }
+
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(to right, rgb(16 185 129), rgb(14 165 233));
+            z-index: 50;
+        }
+    </style>
+</head>
+
+<body class="tail-container bg-white text-slate-800 overflow-x-hidden">
+    <!-- Progress bar -->
+    <div id="progress-bar" class="scroll-progress w-0"></div>
+
+    <!-- NAVBAR -->
+    <nav class="bg-white border-b border-slate-100 fixed w-full z-50">
+        <div class="max-w-screen-2xl mx-auto">
+            <div class="px-8 py-5 flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-x-3">
+                    <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-shield-halved text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <span class="logo-font text-3xl font-semibold tracking-tighter text-emerald-600">curuka</span>
+                    </div>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center gap-x-8 text-sm font-medium">
+                    <a href="#como" onclick="smoothScrollTo('como')"
+                        class="nav-link text-slate-600 hover:text-emerald-600">Como funciona</a>
+                    <a href="#funcionalidades" onclick="smoothScrollTo('funcionalidades')"
+                        class="nav-link text-slate-600 hover:text-emerald-600">Funcionalidades</a>
+                    <a href="#porque" onclick="smoothScrollTo('porque')"
+                        class="nav-link text-slate-600 hover:text-emerald-600">Por que usar</a>
+                    <a href="#download" onclick="smoothScrollTo('download')"
+                        class="nav-link text-slate-600 hover:text-emerald-600">Baixar</a>
+                </div>
+
+                <div class="flex items-center gap-x-4">
+                    <!-- <button onclick="fakeLogin()" 
+                            class="px-5 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-3xl hover:border-slate-300 transition-colors flex items-center gap-x-2">
+                        <i class="fa-solid fa-user text-xs"></i>
+                        <span>Entrar</span>
+                    </button> -->
+
+                    <button onclick="downloadAPK()"
+                        class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 transition-all text-white text-sm font-semibold rounded-3xl flex items-center gap-x-2 shadow-lg shadow-emerald-200">
+                        <i class="fa-solid fa-download"></i>
+                        <span class="hidden sm:inline">Baixar APK</span>
+                    </button>
+
+                    <!-- Mobile hamburger -->
+                    <button id="mobile-menu-btn"
+                        class="md:hidden w-10 h-10 flex items-center justify-center text-slate-700">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+            <div class="px-6 py-6 flex flex-col gap-y-6 text-base">
+                <a href="#como" onclick="toggleMobileMenu()" class="font-medium text-slate-600">Como funciona</a>
+                <a href="#funcionalidades" onclick="toggleMobileMenu()"
+                    class="font-medium text-slate-600">Funcionalidades</a>
+                <a href="#porque" onclick="toggleMobileMenu()" class="font-medium text-slate-600">Por que usar</a>
+                <a href="#download" onclick="toggleMobileMenu()" class="font-medium text-slate-600">Baixar o app</a>
+
+                <div class="pt-6 border-t flex flex-col gap-y-3">
+                    <button onclick="fakeLogin();toggleMobileMenu()"
+                        class="w-full py-4 text-slate-700 font-medium border border-slate-200 rounded-3xl">
+                        Entrar na conta
+                    </button>
+                    <button onclick="downloadAPK();toggleMobileMenu()"
+                        class="w-full py-4 bg-emerald-500 text-white font-semibold rounded-3xl">
+                        Baixar APK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <header class="hero-bg pt-24 md:pt-28 pb-16 md:pb-24">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+                <!-- Left content -->
+                <div class="lg:col-span-7 pt-8 lg:pt-12">
+                    <div
+                        class="inline-flex items-center gap-x-2 bg-white shadow-sm border border-emerald-100 text-emerald-700 text-xs font-medium tracking-widest px-5 h-7 rounded-3xl mb-6">
+                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        NFC + SEGURANÇA
+                    </div>
+
+                    <h1
+                        class="text-6xl md:text-7xl font-semibold leading-none tracking-tighter text-slate-900 logo-font">
+                        Proteja quem<br>você mais ama
+                    </h1>
+
+                    <p class="mt-6 text-xl md:text-2xl text-slate-600 max-w-lg">
+                        Curuka usa tecnologia NFC para identificar crianças e notificar
+                        os responsáveis em tempo real.
+                    </p>
+
+                    <div class="flex flex-wrap gap-4 mt-10">
+                        <button onclick="downloadAPK()"
+                            class="group flex items-center justify-center gap-x-3 bg-emerald-600 hover:bg-emerald-700 transition-all text-white font-semibold text-lg px-8 py-7 rounded-3xl shadow-xl shadow-emerald-300 active:scale-95">
+                            <i class="fa-solid fa-android text-3xl"></i>
+                            <div class="text-left">
+                                <div class="text-xs tracking-[0.5px] opacity-75">DISPONÍVEL PARA</div>
+                                <div class="text-2xl -mt-1">Android</div>
+                            </div>
+                        </button>
+
+                        <button onclick="smoothScrollTo('como')"
+                            class="flex-1 sm:flex-none px-8 py-7 border-2 border-slate-300 hover:border-slate-400 transition-all font-medium rounded-3xl text-slate-700 flex items-center justify-center gap-x-3">
+                            <span class="text-lg">Como funciona</span>
+                            <i class="fa-solid fa-arrow-down text-emerald-500"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-12 flex items-center gap-x-8">
+                        <div class="flex -space-x-4">
+                            <div
+                                class="w-8 h-8 bg-sky-200 border-2 border-white rounded-2xl flex items-center justify-center text-xs">
+                                👦</div>
+                            <div
+                                class="w-8 h-8 bg-amber-200 border-2 border-white rounded-2xl flex items-center justify-center text-xs">
+                                👧</div>
+                            <div
+                                class="w-8 h-8 bg-violet-200 border-2 border-white rounded-2xl flex items-center justify-center text-xs">
+                                👨‍👧</div>
+                        </div>
+                        <div class="text-sm">
+                            <div class="font-semibold text-emerald-700">+12.459 famílias</div>
+                            <div class="text-slate-500 text-xs">já protegem seus filhos</div>
+                        </div>
+                    </div>
+
+                    <!-- Trust signals -->
+                    <div class="mt-16 flex items-center gap-x-7 text-xs">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-lock text-emerald-400"></i>
+                            <span class="ml-2 text-slate-500">Segurança Firebase</span>
+                        </div>
+                        <div class="h-3 w-px bg-slate-200"></div>
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-nfc text-sky-400"></i>
+                            <span class="ml-2 text-slate-500">Tecnologia NFC</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right illustration -->
+                <div class="lg:col-span-5 flex justify-center lg:justify-end">
+                    <div class="relative hero-illustration w-full max-w-xs md:max-w-md">
+                        <!-- Phone mockup -->
+                        <div
+                            class="phone-mock bg-slate-900 w-64 h-[520px] mx-auto rounded-[52px] p-3 relative z-20 overflow-hidden">
+                            <!-- Screen -->
+                            <div class="bg-white w-full h-full rounded-[42px] overflow-hidden relative">
+                                <!-- Fake app header -->
+                                <div class="h-12 bg-emerald-500 flex items-center px-4 text-white text-xs font-medium">
+                                    <div class="flex-1">Curuka</div>
+                                    <div class="flex items-center gap-x-1">
+                                        <div class="w-3 h-3 bg-white/30 rounded-full"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Fake notification -->
+                                <div onclick="showDemoNotification()"
+                                    class="absolute top-24 left-4 right-4 bg-white shadow-xl rounded-3xl p-4 cursor-pointer">
+                                    <div class="flex gap-3">
+                                        <div
+                                            class="w-10 h-10 bg-orange-100 rounded-2xl flex items-center justify-center flex-shrink-0 text-3xl">
+                                            📍</div>
+                                        <div class="flex-1">
+                                            <div class="text-xs font-medium text-orange-500">ALERTA DE LOCALIZAÇÃO</div>
+                                            <div class="font-semibold text-sm mt-1 leading-none">Lucas foi
+                                                escaneado<br>na Praça Central</div>
+                                            <div class="text-[10px] text-slate-400 mt-4">Há 2 minutos • 14:31</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- NFC badge -->
+                                <div
+                                    class="absolute bottom-12 left-1/2 -translate-x-1/2 bg-white border border-slate-100 shadow-md w-40 rounded-3xl p-5 text-center">
+                                    <div
+                                        class="mx-auto w-11 h-11 bg-sky-100 rounded-2xl flex items-center justify-center mb-3">
+                                        <i class="fa-solid fa-nfc text-4xl text-sky-500 nfc-tag"></i>
+                                    </div>
+                                    <div class="text-emerald-600 text-xs font-bold tracking-widest">NFC ATIVADO</div>
+                                    <div
+                                        class="h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent my-4">
+                                    </div>
+                                    <div class="text-slate-400 text-[10px]">Toque em qualquer leitor</div>
+                                </div>
+
+                                <!-- Fake child avatar -->
+                                <div
+                                    class="absolute -bottom-4 right-6 w-28 h-28 bg-white rounded-3xl shadow-xl p-2 flex items-center justify-center">
+                                    <div
+                                        class="w-20 h-20 bg-amber-200 rounded-3xl flex items-center justify-center text-6xl">
+                                        🧒</div>
+                                </div>
+                            </div>
+
+                            <!-- Phone bottom bar -->
+                            <div class="absolute bottom-4 left-1/2 w-28 h-1 bg-slate-300 rounded-full"></div>
+                        </div>
+
+                        <!-- Decorative NFC tag floating -->
+                        <!-- <div class="absolute -top-8 -left-8 bg-white shadow-2xl p-5 rounded-3xl rotate-[-12deg]">
+                            <div class="flex flex-col items-center">
+                                <div class="text-xs font-mono bg-slate-900 text-white px-4 py-1 rounded-3xl">TAG-392
+                                </div>
+                                <div class="mt-4 text-5xl">🏷️</div>
+                                <div class="text-emerald-500 text-xs mt-1 font-medium">Lucas Silva • 7 anos</div>
+                            </div>
+                        </div> -->
+
+                        <!-- Parent icon -->
+                        <!-- <div
+                            class="absolute -bottom-6 right-12 bg-white w-14 h-14 rounded-3xl shadow-xl flex items-center justify-center text-4xl border border-emerald-100">
+                            👩‍❤️‍👨
+                        </div> -->
+
+                        <!-- Connection lines -->
+                        <div
+                            class="absolute top-1/3 left-1/2 w-px h-12 bg-gradient-to-b from-transparent via-sky-300 to-transparent">
+                        </div>
+                        <div
+                            class="absolute top-1/2 left-1/3 w-12 h-px bg-gradient-to-r from-transparent via-sky-300 to-transparent">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wave divider -->
+        <!-- <div class="absolute bottom-0 left-0 right-0 h-24 overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 120" class="w-full h-full text-white">
+                <path fill="currentColor" fill-opacity="1"
+                    d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,80C672,64,768,64,864,80C960,96,1056,128,1152,128C1248,128,1344,96,1392,80L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z">
+                </path>
+            </svg>
+        </div> -->
+    </header>
+
+    <!-- COMO FUNCIONA -->
+    <section id="como" class="py-24 bg-white">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="flex flex-col items-center text-center mb-16">
+                <span class="px-5 py-2 bg-sky-100 text-sky-600 text-sm font-medium rounded-3xl">3 PASSOS SIMPLES</span>
+                <h2 class="section-header text-5xl font-semibold mt-4">Como o Curuka funciona</h2>
+                <p class="max-w-md text-slate-500 mt-4">Proteção em três etapas rápidas e intuitivas</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <!-- Step 1 -->
+                <div class="step-card bg-white border border-slate-100 rounded-3xl p-8 text-center">
+                    <div
+                        class="mx-auto w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center text-4xl mb-6">
+                        📱</div>
+                    <div class="text-emerald-500 font-mono text-sm mb-2">01</div>
+                    <h3 class="font-semibold text-2xl">Cadastre a criança</h3>
+                    <p class="mt-3 text-slate-500 text-[15px]">Crie o perfil do seu filho com nome, foto e informações
+                        de contato no aplicativo.</p>
+                    <div class="mt-8 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+                    <div class="text-xs text-slate-400 mt-6 flex justify-center items-center gap-x-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Seguro e privado</span>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step-card bg-white border border-slate-100 rounded-3xl p-8 text-center relative">
+                    <div
+                        class="absolute -top-4 right-8 bg-white border border-emerald-300 text-emerald-500 text-xs font-bold px-4 py-1 rounded-3xl shadow">
+                        NFC</div>
+
+                    <div
+                        class="mx-auto w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-4xl mb-6">
+                        🏷️</div>
+                    <div class="text-emerald-500 font-mono text-sm mb-2">02</div>
+                    <h3 class="font-semibold text-2xl">Fixe uma tag NFC</h3>
+                    <p class="mt-3 text-slate-500 text-[15px]">Cole uma tag NFC na pulseira, mochila ou roupa da
+                        criança. É discreto e durável.</p>
+                    <div class="mt-auto pt-12">
+                        <div class="inline-flex text-[10px] items-center gap-x-1 bg-slate-100 px-3 py-2 rounded-3xl">
+                            <span class="text-amber-400">•</span>
+                            <span>Compatível com tags baratas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step-card bg-white border border-slate-100 rounded-3xl p-8 text-center">
+                    <div
+                        class="mx-auto w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center text-4xl mb-6">
+                        🔔</div>
+                    <div class="text-emerald-500 font-mono text-sm mb-2">03</div>
+                    <h3 class="font-semibold text-2xl">Receba alertas</h3>
+                    <p class="mt-3 text-slate-500 text-[15px]">Qualquer pessoa que escanear a tag com o celular envia
+                        uma notificação instantânea para você.</p>
+
+                    <div class="mt-12 bg-slate-50 border border-slate-100 rounded-2xl p-3 text-left text-xs">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-medium">Lucas foi encontrado</div>
+                                <div class="text-slate-400">14:31 • Praça da Liberdade</div>
+                            </div>
+                            <div class="text-emerald-400">
+                                <i class="fa-solid fa-check-circle text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FUNCIONALIDADES -->
+    <section id="funcionalidades" class="py-20 bg-slate-50">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="grid grid-cols-12 gap-x-6">
+                <!-- Left title -->
+                <div class="col-span-12 lg:col-span-4">
+                    <div class="sticky top-28">
+                        <span class="text-emerald-600 text-sm font-semibold">RECURSOS</span>
+                        <h2 class="text-5xl font-semibold tracking-tighter leading-none mt-3">Tudo que você precisa para
+                            proteger sua família</h2>
+                        <p class="text-slate-500 mt-6 pr-6">Tecnologia simples e confiável para manter seus filhos
+                            seguros em qualquer lugar.</p>
+
+                        <div class="mt-12 hidden lg:flex items-center gap-x-3 text-xs uppercase font-medium">
+                            <div class="flex-1 h-px bg-slate-300"></div>
+                            <div>Powered by</div>
+                            <div class="flex-1 h-px bg-slate-300"></div>
+                        </div>
+
+                        <div class="mt-6 flex items-center gap-x-8 text-slate-400">
+                            <div class="flex items-center gap-x-2">
+                                <i class="fa-brands fa-google text-xl"></i>
+                            </div>
+                            <div class="flex items-center gap-x-2">
+                                <i class="fa-solid fa-fire text-xl"></i>
+                            </div>
+                            <div class="text-xs leading-none">FIREBASE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features grid -->
+                <div class="col-span-12 lg:col-span-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <!-- Card 1 -->
+                        <div class="feature-card bg-white rounded-3xl p-7 border border-transparent">
+                            <div
+                                class="w-12 h-12 flex items-center justify-center bg-emerald-100 text-emerald-600 rounded-2xl mb-6">
+                                <i class="fa-solid fa-nfc text-3xl"></i>
+                            </div>
+                            <div class="font-semibold text-xl">Identificação NFC</div>
+                            <div class="mt-2 text-slate-500 text-sm">Tags NFC fixas em objetos pessoais permitem que
+                                qualquer um identifique a criança rapidamente.</div>
+                            <div class="mt-10 text-xs text-emerald-500 font-medium flex items-center">
+                                ESCANEAR
+                                <span class="flex-1 h-px bg-emerald-200 mx-4"></span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="feature-card bg-white rounded-3xl p-7 border border-transparent">
+                            <div
+                                class="w-12 h-12 flex items-center justify-center bg-rose-100 text-rose-500 rounded-2xl mb-6">
+                                <i class="fa-solid fa-bell text-3xl"></i>
+                            </div>
+                            <div class="font-semibold text-xl">Notificações instantâneas</div>
+                            <div class="mt-2 text-slate-500 text-sm">Receba alertas no celular assim que a tag for
+                                escaneada por qualquer pessoa.</div>
+                            <div class="mt-12 pt-8 border-t text-xs flex justify-between text-slate-400">
+                                <div>Instantâneo</div>
+                                <div class="text-emerald-400">✓</div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="feature-card bg-white rounded-3xl p-7 border border-transparent">
+                            <div
+                                class="w-12 h-12 flex items-center justify-center bg-blue-100 text-blue-500 rounded-2xl mb-6">
+                                <i class="fa-solid fa-clock-rotate-left text-3xl"></i>
+                            </div>
+                            <div class="font-semibold text-xl">Histórico completo</div>
+                            <div class="mt-2 text-slate-500 text-sm">Acompanhe todas as leituras de tags e veja o mapa
+                                dos últimos locais onde a criança foi vista.</div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="feature-card bg-white rounded-3xl p-7 border border-transparent">
+                            <div
+                                class="w-12 h-12 flex items-center justify-center bg-purple-100 text-purple-500 rounded-2xl mb-6">
+                                <i class="fa-solid fa-cloud text-3xl"></i>
+                            </div>
+                            <div class="font-semibold text-xl">Segurança na nuvem</div>
+                            <div class="mt-2 text-slate-500 text-sm">Todos os dados criptografados e hospedados com
+                                Firebase. Proteção total da privacidade.</div>
+                            <div class="text-[10px] mt-8 text-slate-400">🔐 256-bit AES</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- POR QUE USAR CURUKA -->
+    <section id="porque" class="py-24 bg-white">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="max-w-2xl mx-auto text-center">
+                <h2 class="text-5xl font-semibold">Crianças se perdem. Nós reconectamos.</h2>
+                <p class="mt-6 text-lg text-slate-600">Em parques, shoppings ou eventos lotados, uma simples tag NFC
+                    pode fazer toda a diferença.</p>
+            </div>
+
+            <div class="mt-20 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                <!-- Problem -->
+                <div class="md:col-span-5 bg-orange-50 border border-orange-100 rounded-3xl p-8">
+                    <div class="uppercase text-xs text-orange-500 font-medium mb-4 flex items-center gap-x-2">
+                        <span class="block w-3 h-px bg-orange-400"></span>
+                        O PROBLEMA
+                    </div>
+                    <div class="text-3xl font-medium leading-tight">Crianças se perdem facilmente em locais movimentados
+                        e o pânico toma conta dos pais.</div>
+                    <ul class="mt-12 space-y-7">
+                        <li class="flex gap-x-4">
+                            <span class="text-orange-400 text-xl">01</span>
+                            <div>
+                                <div class="font-medium">Falta de identificação</div>
+                                <div class="text-sm text-slate-500">Muitas crianças não carregam documentos.</div>
+                            </div>
+                        </li>
+                        <li class="flex gap-x-4">
+                            <span class="text-orange-400 text-xl">02</span>
+                            <div>
+                                <div class="font-medium">Demora para localizar</div>
+                                <div class="text-sm text-slate-500">A ajuda chega tarde quando é necessário.</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Arrow -->
+                <div class="hidden md:flex justify-center items-center text-emerald-400">
+                    <i class="fa-solid fa-arrow-right text-6xl"></i>
+                </div>
+
+                <!-- Solution -->
+                <div class="md:col-span-6 bg-emerald-50 border border-emerald-100 rounded-3xl p-8">
+                    <div class="uppercase text-xs text-emerald-500 font-medium mb-4 flex items-center gap-x-2">
+                        <span class="block w-3 h-px bg-emerald-400"></span>
+                        A SOLUÇÃO
+                    </div>
+                    <div class="text-3xl font-medium leading-tight text-emerald-800">Curuka transforma qualquer
+                        smartphone em uma ferramenta de resgate instantâneo.</div>
+
+                    <div class="mt-16 grid grid-cols-2 gap-8">
+                        <div>
+                            <div
+                                class="flex items-center justify-center w-9 h-9 bg-white rounded-2xl shadow-inner text-2xl mb-4">
+                                🚀</div>
+                            <div class="font-semibold">Rápido</div>
+                            <div class="text-xs text-slate-500 mt-px">Identificação em segundos</div>
+                        </div>
+                        <div>
+                            <div
+                                class="flex items-center justify-center w-9 h-9 bg-white rounded-2xl shadow-inner text-2xl mb-4">
+                                🛡️</div>
+                            <div class="font-semibold">Seguro</div>
+                            <div class="text-xs text-slate-500 mt-px">Dados criptografados</div>
+                        </div>
+                    </div>
+
+                    <button onclick="downloadAPK()"
+                        class="mt-12 text-sm flex items-center gap-x-2 text-emerald-600 font-medium hover:text-emerald-700">
+                        <span>COMECE AGORA</span>
+                        <span class="text-xl leading-none">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TESTIMONIAL -->
+    <div class="py-12 bg-slate-100">
+        <div class="max-w-screen-2xl mx-auto px-8">
+            <div class="max-w-lg mx-auto bg-white rounded-3xl shadow-inner p-8">
+                <div class="flex gap-x-1 text-amber-400 text-xl">
+                    ★★★★☆
+                </div>
+                <p class="mt-6 italic text-slate-600">
+                    “Minha filha se perdeu no shopping por 20 minutos. Uma boa samaritana escaneou a tag e eu recebi a
+                    notificação imediatamente. Melhor investimento em segurança que fiz!”
+                </p>
+                <div class="flex items-center gap-x-3 mt-12">
+                    <div class="w-8 h-8 bg-pink-200 rounded-2xl"></div>
+                    <div>
+                        <div class="text-sm font-medium">Mariana Costa</div>
+                        <div class="text-xs text-slate-400">Mãe de Luísa • São Paulo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOWNLOAD -->
+    <section id="download" class="py-24 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <span
+                        class="inline-block px-6 py-2 bg-white/10 backdrop-blur rounded-3xl text-xs font-medium text-emerald-300">MVP
+                        • ANDROID</span>
+
+                    <h2 class="text-white text-6xl font-semibold tracking-tight mt-6">Baixe agora e proteja sua família
+                    </h2>
+
+                    <div class="mt-8 max-w-xs">
+                        <p class="text-slate-300">Versão inicial para Android. Teste grátis e ajude a melhorar o Curuka.
+                        </p>
+                    </div>
+
+                    <div onclick="downloadAPK()" class="mt-10 cursor-pointer inline-flex items-center gap-x-5 group">
+                        <div
+                            class="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-900 text-5xl group-active:scale-95 transition-transform">
+                            <i class="fa-solid fa-android"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-emerald-400 font-medium">BAIXAR APK</div>
+                            <div class="text-4xl font-medium text-white">Curuka v0.8.2</div>
+                            <div class="text-xs text-slate-400 mt-1">14.8 MB • Seguro</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 text-xs text-slate-400 flex items-center gap-x-2">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <span>Pode ser necessário permitir apps de fontes desconhecidas</span>
+                    </div>
+                </div>
+
+                <!-- Mock phones side by side -->
+                <div class="flex justify-center lg:justify-end">
+                    <div class="relative flex">
+                        <!-- Phone left -->
+                        <div class="w-44 h-[380px] bg-slate-900 rounded-3xl p-2 shadow-2xl">
+                            <div class="bg-[#111] w-full h-full rounded-3xl overflow-hidden relative">
+                                <div class="absolute top-0 inset-x-0 h-8 bg-black flex items-end justify-center">
+                                    <div class="w-24 h-4 bg-slate-800 rounded-b-3xl"></div>
+                                </div>
+
+                                <div class="pt-12 px-5 text-center">
+                                    <div class="text-emerald-400 text-xs font-bold">CURUKA</div>
+                                    <div class="text-white text-xl mt-6">Bem-vindo, João!</div>
+                                    <div class="mt-8 text-[10px] text-slate-400">Última leitura</div>
+                                    <div class="mt-3 text-white text-sm">Mochila do Pedro • Shopping</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Phone right overlapping -->
+                        <div class="w-44 h-[380px] bg-slate-900 rounded-3xl p-2 shadow-2xl -ml-10 mt-12">
+                            <div class="bg-white w-full h-full rounded-3xl overflow-hidden">
+                                <!-- Fake map screen -->
+                                <div class="h-2/3 bg-sky-200 flex items-center justify-center text-sky-400 text-7xl">
+                                    📍
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex justify-between text-xs">
+                                        <div class="font-medium text-slate-700">Localização</div>
+                                        <div class="text-emerald-500">ATUALIZADO</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRIVACIDADE -->
+    <div class="bg-white py-8 border-t border-b">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-y-6 text-xs">
+                <div class="flex items-center gap-x-8 text-slate-400">
+                    <a href="#" onclick="showModal('terms')" class="hover:text-slate-700 transition-colors">Termos de
+                        uso</a>
+                    <a href="#" onclick="showModal('privacy')"
+                        class="hover:text-slate-700 transition-colors">Privacidade</a>
+                </div>
+
+                <div onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+                    class="flex items-center cursor-pointer gap-x-2 text-slate-400 hover:text-slate-600 transition-colors">
+                    <span class="text-base">↑</span>
+                    <span class="font-medium text-xs tracking-widest">VOLTAR AO TOPO</span>
+                </div>
+
+                <div class="text-slate-400 text-xs">
+                    Curuka respeita sua privacidade. Apenas dados necessários para o funcionamento são coletados.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-300">
+        <div class="max-w-screen-2xl mx-auto px-6 lg:px-16 pt-20 pb-8">
+            <div class="grid grid-cols-12 gap-y-16">
+                <!-- Col 1 -->
+                <div class="col-span-12 md:col-span-5">
+                    <div class="flex items-center gap-x-3 text-white">
+                        <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center">
+                            <i class="fa-solid fa-shield-halved text-white"></i>
+                        </div>
+                        <span class="logo-font text-4xl font-semibold tracking-tighter">curuka</span>
+                    </div>
+
+                    <p class="text-slate-400 mt-5 text-sm max-w-xs">
+                        Tecnologia NFC para proteger crianças e tranquilizar pais.
+                    </p>
+
+                    <div class="mt-16 text-xs flex items-center gap-x-5">
+                        <div class="flex items-center">
+                            <i class="fa-brands fa-google-play"></i>
+                        </div>
+                        <div class="uppercase text-[10px]">Android</div>
+                    </div>
+                </div>
+
+                <!-- Col 2 -->
+                <div class="col-span-6 md:col-span-2">
+                    <div class="uppercase text-xs mb-6 text-slate-400">Produto</div>
+                    <div class="flex flex-col gap-y-5 text-sm">
+                        <a href="#como" class="hover:text-white transition-colors">Como funciona</a>
+                        <a href="#funcionalidades" class="hover:text-white transition-colors">Funcionalidades</a>
+                        <a href="#" class="hover:text-white transition-colors">Preços</a>
+                    </div>
+                </div>
+
+                <!-- Col 3 -->
+                <div class="col-span-6 md:col-span-2">
+                    <div class="uppercase text-xs mb-6 text-slate-400">Empresa</div>
+                    <div class="flex flex-col gap-y-5 text-sm">
+                        <a href="#" class="hover:text-white transition-colors">Sobre nós</a>
+                        <a href="#" class="hover:text-white transition-colors">Blog</a>
+                        <a href="#" onclick="showModal('contact')"
+                            class="hover:text-white transition-colors">Contato</a>
+                    </div>
+                </div>
+
+                <!-- Col 4 -->
+                <div class="col-span-12 md:col-span-3">
+                    <div class="bg-slate-800 rounded-3xl px-7 py-7">
+                        <div class="text-xs font-medium text-emerald-400">SUPORTE</div>
+                        <a href="mailto:suporte@curuka.com"
+                            class="block mt-3 text-white text-xl font-medium">suporte@curuka.com</a>
+
+                        <div class="h-px bg-slate-700 my-8"></div>
+
+                        <div class="text-xs">Siga-nos</div>
+                        <div class="flex gap-x-6 mt-5 text-2xl">
+                            <i onclick="window.open('https://instagram.com','_blank')"
+                                class="fa-brands fa-instagram cursor-pointer hover:text-white"></i>
+                            <i onclick="window.open('https://twitter.com','_blank')"
+                                class="fa-brands fa-x-twitter cursor-pointer hover:text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="border-t border-slate-800 mt-20 pt-8 text-xs flex flex-col md:flex-row justify-between items-center gap-y-4">
+                <div>© 2025 Curuka — Todos os direitos reservados</div>
+                <div class="flex gap-x-5 text-slate-500">
+                    <a href="https://github.com/carlospessin">
+                        <div>
+                            <span>Desenvolvido por </span>
+                            <span class="text-emerald-400">PX3</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- DEMO NOTIFICATION MODAL -->
+    <div onclick="if(event.target.id === 'demo-modal') this.style.display = 'none'" id="demo-modal"
+        class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end lg:items-center justify-center z-[9999]">
+        <div onclick="event.stopImmediatePropagation()"
+            class="bg-white w-full max-w-md mx-4 lg:mx-0 rounded-t-3xl lg:rounded-3xl overflow-hidden">
+            <!-- Modal header -->
+            <div class="px-6 py-5 border-b flex items-center justify-between">
+                <div class="font-medium">Notificação recebida</div>
+                <button onclick="hideDemoNotification()" class="text-slate-400">
+                    ✕
+                </button>
+            </div>
+
+            <div class="p-6">
+                <div class="flex gap-x-4">
+                    <div class="flex-shrink-0 text-5xl">🧒</div>
+                    <div class="flex-1">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="font-semibold text-lg">Pedro foi escaneado</div>
+                                <div class="text-emerald-500 text-xs">• Há alguns segundos</div>
+                            </div>
+                            <div class="text-right">
+                                <span
+                                    class="inline-block px-4 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-3xl">OK</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 text-sm text-slate-600">
+                            Localização aproximada: <span class="font-medium">Parque Ibirapuera, São Paulo</span>
+                        </div>
+
+                        <div class="text-xs mt-8 bg-slate-100 rounded-2xl p-4 text-slate-500">
+                            Escaneado por: Ana Clara (boa samaritana)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-5 bg-slate-50 flex items-center justify-between text-xs">
+                <button onclick="hideDemoNotification()"
+                    class="font-medium text-slate-400 hover:text-slate-500">Fechar</button>
+                <button onclick="hideDemoNotification()" class="font-semibold text-emerald-600">Ver no mapa →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TEMPLATE -->
+    <div id="global-modal" onclick="if(event.target.id === 'global-modal') hideGlobalModal()"
+        class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+        <div onclick="event.stopImmediatePropagation()" class="max-w-lg bg-white w-full mx-4 rounded-3xl">
+            <div id="modal-content" class="p-8">
+                <!-- JS injected -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tailwind script run
+        function initializeTailwind() {
+            // Already configured via CDN
+        }
+
+        // Smooth scroll helper
+        function smoothScrollTo(section) {
+            let el;
+
+            if (section === 'como') {
+                el = document.getElementById('como');
+            } else if (section === 'funcionalidades') {
+                el = document.getElementById('funcionalidades');
+            } else if (section === 'porque') {
+                el = document.getElementById('porque');
+            } else if (section === 'download') {
+                el = document.getElementById('download');
+            }
+
+            if (el) {
+                const navHeight = 80;
+                const topOffset = el.getBoundingClientRect().top + window.scrollY - navHeight;
+                window.scrollTo({ top: topOffset, behavior: 'smooth' });
+            }
+
+            // Close mobile menu if open
+            if (window.innerWidth < 768) {
+                const mobileMenu = document.getElementById('mobile-menu');
+                mobileMenu.classList.add('hidden');
+            }
+        }
+
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        }
+
+        // Fake download
+        function downloadAPK() {
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed; 
+                bottom: 30px; 
+                right: 30px; 
+                background: rgb(16 185 129); 
+                color: white; 
+                padding: 16px 22px; 
+                border-radius: 9999px; 
+                box-shadow: 0 25px 50px -12px rgb(0 0 0); 
+                display: flex; 
+                align-items: center; 
+                gap: 12px; 
+                z-index: 99999;
+                animation: popUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            `;
+            notif.innerHTML = `
+                <i class="fa-solid fa-check-circle"></i>
+                <div>
+                    <div class="text-xs font-medium opacity-75">APK BAIXADO</div>
+                    <div class="text-sm font-semibold">curuka-v0.8.2.apk</div>
+                </div>
+            `;
+            document.body.appendChild(notif);
+
+            setTimeout(() => {
+                notif.style.transitionDuration = '400ms';
+                notif.style.opacity = 0;
+                notif.style.transform = 'translateY(40px)';
+
+                setTimeout(() => {
+                    notif.remove();
+                }, 400);
+            }, 3400);
+
+            // Simulate download progress
+            console.log('%c APK download initiated (demo)', 'color:#10b981; font-family:monospace');
+        }
+
+        // Fake login
+        function fakeLogin() {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:white;padding:10px 28px;border-radius:9999px;font-size:13px;white-space:nowrap;box-shadow: 0 10px 15px -3px rgb(0 0 0);z-index:99999';
+            toast.textContent = '🔑 Login simulado (demo)';
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 1, 1)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 1700);
+        }
+
+        function showDemoNotification() {
+            const modal = document.getElementById('demo-modal');
+            modal.style.display = 'flex';
+            modal.style.animation = 'fadeInModal 300ms forwards';
+        }
+
+        function hideDemoNotification() {
+            const modal = document.getElementById('demo-modal');
+            modal.style.transition = 'transform 300ms cubic-bezier(0.4, 0, 1, 1), opacity 300ms';
+            modal.style.transform = 'translateY(80px)';
+            modal.style.opacity = '0';
+
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.style.transform = '';
+                modal.style.opacity = '';
+            }, 300);
+        }
+
+        // Global modal
+        let currentModalType = '';
+
+        function showModal(type) {
+            const modal = document.getElementById('global-modal');
+            const contentContainer = document.getElementById('modal-content');
+
+            contentContainer.innerHTML = '';
+
+            if (type === 'privacy') {
+                contentContainer.innerHTML = `
+                    <div class="flex justify-between items-baseline">
+                        <div class="text-3xl font-medium">Privacidade</div>
+                        <button onclick="hideGlobalModal()" class="text-3xl leading-none text-slate-300 hover:text-slate-400">×</button>
+                    </div>
+                    <div class="prose text-sm mt-8 text-slate-600">
+                        <p>Curuka coleta apenas informações essenciais para o serviço: perfis de crianças, contatos dos responsáveis e registros de escaneamento.</p>
+                        <p class="mt-6">Seus dados são criptografados e nunca vendidos. Você pode solicitar a exclusão de sua conta a qualquer momento.</p>
+                        <div class="my-8 bg-slate-100 h-px"></div>
+                        <div class="text-xs text-slate-400">Última atualização: Janeiro 2025</div>
+                    </div>
+                `;
+            }
+            else if (type === 'terms') {
+                contentContainer.innerHTML = `
+                    <div class="flex justify-between items-baseline">
+                        <div class="text-3xl font-medium">Termos de Uso</div>
+                        <button onclick="hideGlobalModal()" class="text-3xl leading-none text-slate-300 hover:text-slate-400">×</button>
+                    </div>
+                    <div class="prose text-sm mt-8 text-slate-600">
+                        <p>Ao usar o Curuka, você concorda em utilizar o aplicativo de forma responsável e respeitando a privacidade de terceiros.</p>
+                        <ul class="list-disc pl-5 mt-6 space-y-2 text-xs">
+                            <li>Não compartilhe tags de outras crianças</li>
+                            <li>Utilize apenas tags originais</li>
+                            <li>Não remova tags sem consentimento dos responsáveis</li>
+                        </ul>
+                    </div>
+                `;
+            }
+            else if (type === 'contact') {
+                contentContainer.innerHTML = `
+                    <div>
+                        <h3 class="text-3xl font-medium">Fale conosco</h3>
+                        <p class="mt-3 text-slate-500">Nossa equipe responde em até 24h.</p>
+                        
+                        <div class="mt-8">
+                            <label class="text-xs text-slate-500 block mb-2">Seu email</label>
+                            <input type="text" value="voce@exemplo.com" 
+                                   class="w-full border border-slate-200 focus:border-emerald-300 rounded-3xl px-6 py-6 outline-none text-sm">
+                        </div>
+                        
+                        <div class="mt-5">
+                            <label class="text-xs text-slate-500 block mb-2">Mensagem</label>
+                            <textarea rows="4" class="w-full border border-slate-200 focus:border-emerald-300 rounded-3xl px-6 py-6 outline-none text-sm resize-none">Adorei o conceito do Curuka! Como posso ajudar a testar?</textarea>
+                        </div>
+                        
+                        <button onclick="hideGlobalModal()" 
+                                class="mt-8 w-full py-6 bg-emerald-500 text-white font-medium rounded-3xl">Enviar mensagem</button>
+                    </div>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+            modal.style.opacity = 0;
+
+            // Trigger animation
+            setTimeout(() => {
+                modal.style.transitionDuration = '200ms';
+                modal.style.opacity = 1;
+            }, 10);
+        }
+
+        function hideGlobalModal() {
+            const modal = document.getElementById('global-modal');
+            modal.style.transitionDuration = '200ms';
+            modal.style.opacity = 0;
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 220);
+        }
+
+        // Scroll progress bar
+        function setupProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const scrollPercent = scrollTop / docHeight * 100;
+                progressBar.style.width = `${scrollPercent}%`;
+            });
+        }
+
+        // Fade in elements on scroll
+        function animateOnScroll() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.transitionDuration = '700ms';
+                        entry.target.style.transitionDelay = '80ms';
+                        entry.target.style.opacity = 1;
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, {
+                threshold: 0.15
+            });
+
+            const animatedElements = document.querySelectorAll('.step-card, .feature-card');
+
+            animatedElements.forEach(el => {
+                el.style.opacity = 0;
+                el.style.transform = 'translateY(40px)';
+                observer.observe(el);
+            });
+        }
+
+        // Keyboard shortcuts (demo)
+        function handleKeys(e) {
+            if (e.metaKey && e.key === "k") {
+                e.preventDefault();
+                downloadAPK();
+            }
+        }
+
+        // Fake NFC scan demo in console
+        function demoScan() {
+            console.log('%c 📡 NFC tag scanned (demo)', 'background:#10b981;color:#fff;padding:4px 10px;border-radius:4px;font-size:10px');
+        }
+
+        // Main initialization
+        function initialize() {
+            // Tailwind ready
+            initializeTailwind();
+
+            // Progress bar
+            setupProgressBar();
+
+            // Scroll animations
+            animateOnScroll();
+
+            // Mobile menu button
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            mobileBtn.addEventListener('click', toggleMobileMenu);
+
+            // Keyboard listener
+            document.addEventListener('keydown', handleKeys);
+
+            // Random demo scan every 18 seconds
+            setInterval(() => {
+                if (Math.random() > 0.6) demoScan();
+            }, 18000);
+
+            // Make hero illustration interactive
+            const illustration = document.querySelector('.hero-illustration');
+            if (illustration) {
+                illustration.addEventListener('mousemove', (e) => {
+                    const rect = illustration.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const y = (e.clientY - rect.top) / rect.height;
+
+                    illustration.style.transform = `perspective(1200px) rotateX(${(y - 0.5) * -12}deg) rotateY(${(x - 0.5) * 22}deg)`;
+                });
+
+                illustration.addEventListener('mouseleave', () => {
+                    illustration.style.transitionDuration = '600ms';
+                    illustration.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg)`;
+                });
+            }
+
+            // Make footer year dynamic
+            const yearSpans = document.querySelectorAll('.dynamic-year');
+            if (yearSpans.length) {
+                const thisYear = new Date().getFullYear();
+                yearSpans.forEach(span => span.textContent = thisYear);
+            }
+
+            // Keyboard hint in console
+            console.log('%c 👋 Bem-vindo ao demo da landing page do Curuka! \n\nPressione CMD + K para simular download', 'font-family:monospace;color:#666;font-size:10px');
+
+            // Initial demo pulse on NFC icon
+            const nfcIcons = document.querySelectorAll('.nfc-tag');
+            nfcIcons.forEach(icon => {
+                icon.style.animation = 'nfcPulse 1800ms infinite';
+            });
+
+            // Make body scrollable
+            document.documentElement.style.scrollBehavior = 'smooth';
+        }
+
+        // Boot app
+        window.onload = initialize;
+    </script>
+</body>
+
+</html>
