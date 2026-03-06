@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
+import { Footer } from "../components/Footer";
 
 
 export function LandingScreen({ navigation }: { navigation: any }) {
@@ -149,22 +150,9 @@ export function LandingScreen({ navigation }: { navigation: any }) {
       </View>
 
       {/* ───── FOOTER ───── */}
+
       <View style={styles.footer}>
-        <View style={styles.logoContainer}>
-          <View style={styles.logoIconWrap}>
-            <Ionicons name="shield-checkmark" size={14} color={colors.neutral.white} />
-          </View>
-          <Text style={styles.logoText}>curuka</Text>
-        </View>
-        <Text style={styles.footerText}>
-          © 2026 Curuka. Todos os direitos reservados.
-        </Text>
-        <Text style={styles.footerText}>
-          Desenvolvido por{" "}
-          <a href="https://github.com/carlospessin" style={{ textDecoration: "none" }}>
-            <Text style={styles.heroTitleAccent}>PX3</Text>
-          </a>
-        </Text>
+        <Footer />
         <Text style={styles.footerTextVersion}>v1.0.0-beta</Text>
       </View>
     </ScrollView>
@@ -525,14 +513,13 @@ const styles = StyleSheet.create({
 
   /* ── Footer ── */
   footer: {
-    paddingVertical: 28,
+    paddingBottom: 28,
     borderTopWidth: 1,
     borderTopColor: colors.neutral.border,
     backgroundColor: colors.neutral.card,
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    gap: spacing.sm + 4,
     display: "flex",
   },
   footerText: {
