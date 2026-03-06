@@ -165,6 +165,7 @@ export function LandingScreen({ navigation }: { navigation: any }) {
             <Text style={styles.heroTitleAccent}>PX3</Text>
           </a>
         </Text>
+        <Text style={styles.footerTextVersion}>v1.0.0-beta</Text>
       </View>
     </ScrollView>
   );
@@ -525,14 +526,12 @@ const styles = StyleSheet.create({
   /* ── Footer ── */
   footer: {
     paddingVertical: 28,
-    paddingHorizontal: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.neutral.border,
     backgroundColor: colors.neutral.card,
-    flexDirection: "row",
+    flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    flexWrap: "wrap",
     gap: spacing.sm + 4,
     display: "flex",
   },
@@ -543,5 +542,9 @@ const styles = StyleSheet.create({
   footerTextLink: {
     fontSize: 13,
     color: colors.neutral.text.secondary,
+  },
+  footerTextVersion: {
+    fontSize: 12,
+    color: colors.neutral.text.muted,
   },
 });
