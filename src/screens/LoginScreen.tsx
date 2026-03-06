@@ -11,10 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Google from 'expo-auth-session/providers/google';
 import {
   loginOrRegisterWithEmail,
-  loginWithGoogleIdToken,
+  loginWithGoogleNative,
   loginWithGooglePopup,
 } from '../services/auth-service';
 import { borderRadius, colors, shadows, spacing } from '../theme/colors';
@@ -24,41 +23,16 @@ export function LoginScreen() {
   const [password, setPassword] = React.useState('');
   const [isLoadingEmail, setIsLoadingEmail] = React.useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = React.useState(false);
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
-
-  React.useEffect(() => {
-    const completeGoogleLogin = async () => {
-      if (response?.type !== 'success') {
-        return;
-      }
-
-      try {
-        setIsLoadingGoogle(true);
-        const idToken = response.params?.id_token;
-        const accessToken = response.params?.access_token;
-        await loginWithGoogleIdToken(idToken, accessToken);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha ao entrar com Google.';
-        Alert.alert('Erro no login', message);
-      } finally {
-        setIsLoadingGoogle(false);
-      }
-    };
-
-    completeGoogleLogin();
-  }, [response]);
+  const [loginError, setLoginError] = React.useState('');
 
   const handleEmailLogin = async () => {
     try {
       setIsLoadingEmail(true);
+      setLoginError('');
       await loginOrRegisterWithEmail(email, password);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao entrar com email.';
+      setLoginError(message);
       Alert.alert('Erro no login', message);
     } finally {
       setIsLoadingEmail(false);
@@ -68,22 +42,19 @@ export function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoadingGoogle(true);
+      setLoginError('');
 
       if (Platform.OS === 'web') {
         await loginWithGooglePopup();
         return;
       }
 
-      if (!request) {
-        throw new Error(
-          'Configure EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID e EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.'
-        );
-      }
-
-      await promptAsync();
+      await loginWithGoogleNative();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao entrar com Google.';
+      setLoginError(message);
       Alert.alert('Erro no login', message);
+    } finally {
       setIsLoadingGoogle(false);
     }
   };
@@ -93,7 +64,7 @@ export function LoginScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <View style={styles.header}>
           <Text style={styles.title}>Curuka</Text>
-          <Text style={styles.subtitle}>Entre com email ou Google</Text>
+          <Text style={styles.subtitle}>Seguranca infantil</Text>
         </View>
 
         <View style={styles.card}>
@@ -103,7 +74,7 @@ export function LoginScreen() {
             autoCorrect={false}
             keyboardType="email-address"
             onChangeText={setEmail}
-            placeholder="voce@email.com"
+            placeholder="você@email.com"
             placeholderTextColor={colors.neutral.text.muted}
             style={styles.input}
             value={email}
@@ -143,7 +114,7 @@ export function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.helpText}>Se o email nao existir, a conta sera criada automaticamente.</Text>
+          {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -162,6 +133,8 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.lg,
+    display: 'flex',
+    alignItems: 'center',
   },
   title: {
     fontSize: 34,
@@ -219,10 +192,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
-  helpText: {
+  errorText: {
     marginTop: spacing.md,
-    color: colors.neutral.text.muted,
-    fontSize: 12,
+    color: '#B42318',
+    fontSize: 13,
     textAlign: 'center',
+    fontWeight: '600',
   },
 });

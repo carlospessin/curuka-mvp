@@ -112,7 +112,7 @@ export function ChildProfileScreen() {
       return;
     }
     if (!primaryGuardian?.whatsapp) {
-      Alert.alert('WhatsApp indisponivel', 'O contato principal nao possui WhatsApp habilitado.');
+      Alert.alert('WhatsApp indisponivel', 'O contato principal não possui WhatsApp habilitado.');
       return;
     }
 
@@ -168,8 +168,8 @@ export function ChildProfileScreen() {
         timestamp: when,
       });
 
-      setLocationStatus({ type: 'success', message: `Localização enviada com sucesso (${locationLabel}).` });
-      Alert.alert('Localização enviada', `A localização foi enviada ao responsavel.\n${locationLabel}`);
+      setLocationStatus({ type: 'success', message: `Localização enviada com sucesso!` });
+      Alert.alert('Localização enviada', `A localização foi enviada ao responsavel.`);
     } catch {
       setLocationStatus({ type: 'error', message: 'Falha ao enviar localização. Tente novamente.' });
       Alert.alert('Erro', 'Nao foi possivel capturar a localização.');
@@ -215,7 +215,7 @@ export function ChildProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={30} color={colors.status.alert} />
-          <Text style={styles.emptyStateTitle}>Perfil nao encontrado</Text>
+          <Text style={styles.emptyStateTitle}>Perfil não encontrado</Text>
           <Text style={styles.emptyStateText}>O perfil pode ter sido removido ou o link esta invalido.</Text>
         </View>
       </SafeAreaView>
@@ -288,7 +288,7 @@ export function ChildProfileScreen() {
                   <Text style={styles.infoValue}>
                     {guardian.name || 'Responsavel sem nome'} {guardian.principal ? '(Principal)' : ''}
                   </Text>
-                  <Text style={styles.infoLabel}>{guardian.phone || 'Telefone nao informado'}</Text>
+                  <Text style={styles.infoLabel}>{guardian.phone || 'Telefone não informado'}</Text>
                   <Text style={styles.infoLabel}>WhatsApp: {guardian.whatsapp ? 'Sim' : 'Nao'}</Text>
                 </View>
               </View>

@@ -65,6 +65,8 @@ type NfcWriteStatus =
   }
   | null;
 
+const PUBLIC_WEB_BASE_URL = (process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://curuka-mvp.vercel.app').replace(/\/+$/, '');
+
 const createEmptyGuardian = () => ({
   name: '',
   phone: '',
@@ -209,12 +211,7 @@ export function DashboardScreen() {
   const buildChildProfileLink = (profile: ChildProfile | null) => {
     if (!profile?.slug) return null;
 
-    let prefix = 'curuka://';
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      prefix = window.location.origin;
-    }
-
-    return `${prefix}/${profile.slug}`;
+    return `${PUBLIC_WEB_BASE_URL}/${profile.slug}`;
   };
 
   const checkNfcStatus = async () => {
@@ -275,7 +272,7 @@ export function DashboardScreen() {
         Alert.alert('Ative o NFC', 'No iPhone, va em Ajustes e habilite o NFC.');
       }
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel abrir as configuracoes de NFC.');
+      Alert.alert('Erro', 'Nao foi possivel abrir as configurações de NFC.');
     }
   };
 
@@ -284,7 +281,7 @@ export function DashboardScreen() {
 
     const link = buildChildProfileLink(nfcTargetChild);
     if (!link) {
-      const msg = 'Este perfil ainda nao possui link publico para gravacao NFC.';
+      const msg = 'Este perfil ainda não possui link público para gravação NFC.';
       setNfcWriteStatus({ type: 'error', message: msg });
       Alert.alert('Nao foi possivel gravar', msg);
       return;
@@ -292,7 +289,7 @@ export function DashboardScreen() {
 
     const status = await checkNfcStatus();
     if (!status.supported) {
-      const msg = 'Este celular nao oferece suporte a NFC.';
+      const msg = 'Este celular não oferece suporte a NFC.';
       setNfcWriteStatus({ type: 'error', message: msg });
       Alert.alert('NFC indisponivel', msg);
       return;
@@ -314,7 +311,7 @@ export function DashboardScreen() {
       NfcManagerRef = NfcManager;
 
       await NfcManager.requestTechnology(NfcTech.Ndef, {
-        alertMessage: 'Aproxime a tag NFC para gravar o perfil da crianca.',
+        alertMessage: 'Aproxime a tag NFC para gravar o perfil da criança.',
       });
 
       const bytes = Ndef.encodeMessage([Ndef.uriRecord(link)]);
@@ -324,14 +321,14 @@ export function DashboardScreen() {
 
       await NfcManager.ndefHandler.writeNdefMessage(bytes);
 
-      const successMessage = 'Tag NFC gravada com sucesso.';
+      const successMessage = 'Tag NFC gravada com sucesso!';
       setNfcWriteStatus({ type: 'success', message: successMessage });
-      Alert.alert('Sucesso', `${successMessage}\n\nLink: ${link}`);
+      Alert.alert('Sucesso', `${successMessage}`);
     } catch (err: any) {
       const rawMessage = String(err?.message || '').toLowerCase();
       const isUserCancel = rawMessage.includes('cancel') || rawMessage.includes('cancelled');
       const message = isUserCancel
-        ? 'Gravacao cancelada.'
+        ? 'Gravação cancelada.'
         : `Falha ao gravar NFC. ${err?.message || ''}`.trim();
       setNfcWriteStatus({ type: 'error', message });
       if (!isUserCancel) {
@@ -383,12 +380,12 @@ export function DashboardScreen() {
 
   const handleSaveChildProfile = async () => {
     if (!user?.uid) {
-      Alert.alert('Erro', 'Usuario nao autenticado.');
+      Alert.alert('Erro', 'Usuário não autenticado.');
       return;
     }
 
     if (!formData.name.trim()) {
-      Alert.alert('Campo obrigatorio', 'Informe o nome da crianca.');
+      Alert.alert('Campo obrigatorio', 'Informe o nome da criança.');
       return;
     }
 
@@ -455,7 +452,7 @@ export function DashboardScreen() {
         return [...updated, { id: docId, ownerId: user.uid, ...payload }];
       });
 
-      Alert.alert('Sucesso', `Dados da crianca gravados com sucesso (${docId}).`);
+      Alert.alert('Sucesso', `Dados da criança gravados com sucesso (${docId}).`);
       setChildModalVisible(false);
       setFormData(EMPTY_CHILD_FORM);
       setEditingChildId(null);
@@ -463,7 +460,7 @@ export function DashboardScreen() {
       console.error("failed saving child in DashboardScreen", err);
       Alert.alert(
         'Erro',
-        `Nao foi possivel gravar os dados da crianca. ${err?.message || ''}`
+        `Nao foi possivel gravar os dados da criança. ${err?.message || ''}`
       );
     } finally {
       setSavingChild(false);
@@ -472,7 +469,7 @@ export function DashboardScreen() {
 
   const deleteChildProfile = (childId?: string) => {
     if (!childId) {
-      Alert.alert('Sem cadastro', 'Nao ha perfil da crianca para excluir.');
+      Alert.alert('Sem cadastro', 'Nao ha perfil da criança para excluir.');
       return;
     }
 
@@ -482,7 +479,7 @@ export function DashboardScreen() {
 
   const toggleTagStatus = async (childId?: string, currentStatus?: string) => {
     if (!childId) {
-      Alert.alert('Sem cadastro', 'Cadastre a crianca antes de ativar ou desativar a tag.');
+      Alert.alert('Sem cadastro', 'Cadastre a criança antes de ativar ou desativar a tag.');
       return;
     }
 
@@ -504,8 +501,8 @@ export function DashboardScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Ola, {userName}</Text>
-            <Text style={styles.subtitle}>Protecao ativa para sua familia</Text>
+            <Text style={styles.greeting}>Olá, {userName}</Text>
+            <Text style={styles.subtitle}>Proteção ativa para sua família</Text>
           </View>
           <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate('History')}>
             <Ionicons name="notifications-outline" size={24} color={colors.neutral.text.primary} />
@@ -560,7 +557,7 @@ export function DashboardScreen() {
                       </View>
                       <View style={styles.childInfo}>
                         <Text style={styles.childName}>{c.name || 'Sem cadastro'}</Text>
-                        <Text style={styles.childAge}>{c.age ? `${c.age} anos` : 'Idade nao informada'}</Text>
+                        <Text style={styles.childAge}>{c.age ? `${c.age} anos` : 'Idade não informada'}</Text>
                         {c.slug && (
                           <View style={styles.slugRow}>
                           </View>
@@ -582,12 +579,12 @@ export function DashboardScreen() {
                       style={styles.actionButton}
                       onPress={async () => {
                         if (!c.slug) {
-                          Alert.alert('Link indisponivel', 'Este perfil ainda nao possui slug publico.');
+                          Alert.alert('Link indisponivel', 'Este perfil ainda não possui slug público.');
                           return;
                         }
                         const publicLink = buildChildProfileLink(c);
                         if (!publicLink) {
-                          Alert.alert('Link indisponivel', 'Nao foi possivel montar o link publico do perfil.');
+                          Alert.alert('Link indisponivel', 'Nao foi possivel montar o link público do perfil.');
                           return;
                         }
 
@@ -622,7 +619,7 @@ export function DashboardScreen() {
             ))
           ) : (
             <Button
-              title="Cadastrar Crianca"
+              title="Cadastrar Criança"
               onPress={openCreateModal}
               variant="outline"
               size="small"
@@ -631,7 +628,7 @@ export function DashboardScreen() {
           )}
           {plan === 'premium' && hasChildProfile && (
             <Button
-              title="Cadastrar Crianca"
+              title="Cadastrar Criança"
               onPress={openCreateModal}
               variant="outline"
               size="small"
@@ -642,7 +639,7 @@ export function DashboardScreen() {
 
         <Card
           title="Ultima Atividade"
-          subtitle="Notificacao mais recente"
+          subtitle="Notificação mais recente"
           onPress={() => navigation.navigate('History')}
         >
           {latestNotification ? (
@@ -660,7 +657,7 @@ export function DashboardScreen() {
                   <Text style={styles.activityTime}>{formatTimeAgo(latestNotification.timestamp)}</Text>
                   <StatusIndicator
                     status={latestNotification.type === 'scan' ? 'active' : 'warning'}
-                    label={latestNotification.type === 'scan' ? 'Escaneamento' : 'Localizacao'}
+                    label={latestNotification.type === 'scan' ? 'Escaneamento' : 'Localização'}
                     size="small"
                   />
                 </View>
@@ -669,7 +666,7 @@ export function DashboardScreen() {
             </View>
           ) : (
             <View style={styles.loadingWrapper}>
-              <Text style={styles.loadingText}>Nenhuma notificacao recebida ainda.</Text>
+              <Text style={styles.loadingText}>Nenhuma notificação recebida.</Text>
             </View>
           )}
         </Card>
@@ -748,7 +745,7 @@ export function DashboardScreen() {
             </View>
 
             <Text style={styles.nfcTargetText}>
-              Perfil: <Text style={styles.nfcTargetName}>{nfcTargetChild?.name || 'Crianca'}</Text>
+              Perfil: <Text style={styles.nfcTargetName}>{nfcTargetChild?.name || 'Criança'}</Text>
             </Text>
             <Text style={styles.nfcLinkText}>{buildChildProfileLink(nfcTargetChild) || 'Link indisponivel'}</Text>
 
@@ -830,7 +827,7 @@ export function DashboardScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{editingChildId ? 'Editar Crianca' : 'Cadastrar Crianca'}</Text>
+            <Text style={styles.modalTitle}>{editingChildId ? 'Editar Criança' : 'Cadastrar Criança'}</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.inputLabel}>Foto (URL)</Text>
@@ -846,7 +843,7 @@ export function DashboardScreen() {
               <TextInput
                 value={formData.name}
                 onChangeText={(value) => setFormData((prev) => ({ ...prev, name: value }))}
-                placeholder="Nome da crianca"
+                placeholder="Nome da criança"
                 style={styles.input}
               />
 
@@ -1114,7 +1111,7 @@ export function DashboardScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Excluir perfil</Text>
-            <Text>Tem certeza que deseja excluir o perfil da crianca?</Text>
+            <Text>Tem certeza que deseja excluir o perfil da criança?</Text>
             <View style={styles.modalActions}>
               <Button
                 title="Cancelar"
@@ -1134,7 +1131,7 @@ export function DashboardScreen() {
                     }
                   } catch (err) {
                     console.error('failed to delete child profile', err);
-                    Alert.alert('Erro', 'Nao foi possivel excluir o perfil da crianca.');
+                    Alert.alert('Erro', 'Nao foi possivel excluir o perfil da criança.');
                   }
                 }}
                 variant="danger"

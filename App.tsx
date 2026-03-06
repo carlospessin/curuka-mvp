@@ -51,14 +51,15 @@ function TabNavigator() {
           backgroundColor: colors.neutral.card,
           borderTopColor: colors.neutral.border,
           paddingTop: 8,
-          paddingBottom: 8,
-          height: 60,
+          paddingBottom: 20,
+          height: 80,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
         },
+
         headerShown: false,
       })}
     >

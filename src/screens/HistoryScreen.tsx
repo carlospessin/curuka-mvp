@@ -1,12 +1,27 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Linking,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { PlanBadge } from '../components/PlanBadge';
 import { useApp } from '../context/AppContext';
-import { markChildEventsAsRead, watchChildEvents } from '../services/pessoa-service.js';
+import {
+  deleteAllChildEvents,
+  deleteChildEvent,
+  deleteChildEvents,
+  markChildEventsAsRead,
+  watchChildEvents,
+} from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { AppNotification } from '../types';
 import { Footer } from '../components/Footer';
@@ -17,6 +32,9 @@ export function HistoryScreen() {
   const [filter, setFilter] = useState<'all' | 'scan' | 'location'>('all');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   React.useEffect(() => {
     const auth = getAuth();
@@ -71,8 +89,23 @@ export function HistoryScreen() {
     return ordered.filter((item) => item.type === filter);
   }, [notifications, filter]);
 
+  React.useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => notifications.some((item) => item.id === id)));
+  }, [notifications]);
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  const toggleSelection = (notificationId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(notificationId) ? prev.filter((id) => id !== notificationId) : [...prev, notificationId]
+    );
+  };
+
   const openMapForNotification = async (item: AppNotification) => {
-    if (item.type !== 'location') return;
+    if (selectionMode || item.type !== 'location') return;
     if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') return;
 
     const url = `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
@@ -81,8 +114,87 @@ export function HistoryScreen() {
       if (!canOpen) throw new Error('cannot-open-map');
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel abrir o mapa para essa localizacao.');
+      Alert.alert('Erro', 'Nao foi possivel abrir o mapa para essa localização.');
     }
+  };
+
+  const confirmDeleteOne = (item: AppNotification) => {
+    Alert.alert(
+      'Excluir notificação',
+      'Essa notificação sera removida permanentemente.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deleteChildEvent(item.id);
+            } catch {
+              Alert.alert('Erro', 'Nao foi possivel excluir a notificação.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteSelected = () => {
+    if (selectedIds.length === 0) return;
+
+    Alert.alert(
+      'Excluir selecionadas',
+      `Excluir ${selectedIds.length} notificação${selectedIds.length > 1 ? 'oes' : ''}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deleteChildEvents(selectedIds);
+              exitSelectionMode();
+            } catch {
+              Alert.alert('Erro', 'Nao foi possivel excluir as notificações selecionadas.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAll = () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid || notifications.length === 0) return;
+
+    Alert.alert(
+      'Excluir todas',
+      'Todas as notificações do historico serao removidas permanentemente.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir tudo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deleteAllChildEvents(uid);
+              exitSelectionMode();
+            } catch {
+              Alert.alert('Erro', 'Nao foi possivel excluir todas as notificações.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderNotification = ({ item }: { item: AppNotification }) => {
@@ -92,24 +204,59 @@ export function HistoryScreen() {
     const childName =
       (item.childId && children.find((child) => child.id === item.childId)?.name) ||
       item.childName ||
-      'Crianca';
+      'Criança';
     const defaultMessage =
       item.type === 'scan'
         ? `A tag de ${childName} foi escaneada as ${hour}.`
-        : `Localizacao de ${childName} enviada as ${hour}.`;
+        : `Localização de ${childName} enviada as ${hour}.`;
+    const isSelected = selectedIds.includes(item.id);
 
     return (
-      <TouchableOpacity style={styles.notificationItem} onPress={() => openMapForNotification(item)} activeOpacity={item.type === 'location' ? 0.75 : 1}>
+      <TouchableOpacity
+        style={[styles.notificationItem, isSelected && styles.notificationItemSelected]}
+        onPress={() => (selectionMode ? toggleSelection(item.id) : openMapForNotification(item))}
+        activeOpacity={0.75}
+      >
+        {selectionMode ? (
+          <TouchableOpacity
+            style={styles.selectionToggle}
+            onPress={() => toggleSelection(item.id)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={isSelected ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={isSelected ? colors.primary[600] : colors.neutral.text.muted}
+            />
+          </TouchableOpacity>
+        ) : null}
+
         <View style={styles.iconWrap}>
           <Ionicons name={iconName} size={22} color={iconColor} />
         </View>
+
         <View style={styles.notificationInfo}>
           <Text style={styles.notificationText}>{item.message || defaultMessage}</Text>
           {item.location ? <Text style={styles.notificationMeta}>Local: {item.location}</Text> : null}
           <Text style={styles.notificationMeta}>{formatDateTime(item.timestamp)}</Text>
-          {item.type === 'location' ? <Text style={styles.mapHint}>Toque para abrir no mapa</Text> : null}
+          {item.type === 'location' && !selectionMode ? (
+            <Text style={styles.mapHint}>Toque para abrir no mapa</Text>
+          ) : null}
         </View>
-        {!item.read && <View style={styles.unreadDot} />}
+
+        <View style={styles.notificationActions}>
+          {!item.read && <View style={styles.unreadDot} />}
+          {!selectionMode ? (
+            <TouchableOpacity
+              onPress={() => confirmDeleteOne(item)}
+              style={styles.deleteIconButton}
+              hitSlop={8}
+              disabled={deleting}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.status.alert} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -119,7 +266,7 @@ export function HistoryScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Historico</Text>
-          <Text style={styles.subtitle}>Notificacoes de tag e localizacao</Text>
+          <Text style={styles.subtitle}>Notificações de tag e localização</Text>
         </View>
         <PlanBadge plan={plan} />
       </View>
@@ -132,16 +279,56 @@ export function HistoryScreen() {
             onPress={() => setFilter(item)}
           >
             <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>
-              {item === 'all' ? 'Todos' : item === 'scan' ? 'Escaneamento' : 'Localizacao'}
+              {item === 'all' ? 'Todos' : item === 'scan' ? 'Escaneamento' : 'Localização'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {loading ? (
+      <View style={styles.actionsBar}>
+        {selectionMode ? (
+          <>
+            <TouchableOpacity style={styles.actionButton} onPress={exitSelectionMode} disabled={deleting}>
+              <Ionicons name="close-circle-outline" size={16} color={colors.neutral.text.secondary} />
+              <Text style={styles.actionText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, selectedIds.length === 0 && styles.actionButtonDisabled]}
+              onPress={confirmDeleteSelected}
+              disabled={selectedIds.length === 0 || deleting}
+            >
+              <Ionicons name="trash-outline" size={16} color={colors.status.alert} />
+              <Text style={[styles.actionText, styles.actionDanger]}>
+                Excluir selecionadas ({selectedIds.length})
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, filteredNotifications.length === 0 && styles.actionButtonDisabled]}
+              onPress={() => setSelectionMode(true)}
+              disabled={filteredNotifications.length === 0 || deleting}
+            >
+              <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary[600]} />
+              <Text style={styles.actionText}>Selecionar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, notifications.length === 0 && styles.actionButtonDisabled]}
+              onPress={confirmDeleteAll}
+              disabled={notifications.length === 0 || deleting}
+            >
+              <Ionicons name="trash-bin-outline" size={16} color={colors.status.alert} />
+              <Text style={[styles.actionText, styles.actionDanger]}>Excluir todas</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      {loading || deleting ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.primary[600]} />
-          <Text style={styles.emptyText}>Carregando notificacoes...</Text>
+          <Text style={styles.emptyText}>{loading ? 'Carregando notificações...' : 'Atualizando historico...'}</Text>
         </View>
       ) : (
         <FlatList
@@ -153,12 +340,15 @@ export function HistoryScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="notifications-off-outline" size={46} color={colors.neutral.text.muted} />
-              <Text style={styles.emptyText}>Nenhuma notificacao encontrada</Text>
+              <Text style={styles.emptyText}>Nenhuma notificação encontrada</Text>
             </View>
           }
         />
       )}
-      <Footer />
+
+      <View style={styles.customFooter}>
+        <Footer />
+      </View>
     </SafeAreaView>
   );
 }
@@ -187,7 +377,7 @@ const styles = StyleSheet.create({
   filters: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   filterButton: {
     paddingVertical: spacing.sm,
@@ -207,6 +397,34 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: colors.neutral.white,
   },
+  actionsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.neutral.card,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    ...shadows.small,
+  },
+  actionButtonDisabled: {
+    opacity: 0.45,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral.text.secondary,
+  },
+  actionDanger: {
+    color: colors.status.alert,
+  },
   listContent: {
     padding: spacing.md,
     paddingTop: 0,
@@ -225,6 +443,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
     ...shadows.small,
+  },
+  notificationItemSelected: {
+    borderWidth: 1,
+    borderColor: colors.primary[400],
+    backgroundColor: colors.primary[50],
+  },
+  selectionToggle: {
+    marginRight: spacing.sm,
+    paddingTop: 2,
   },
   iconWrap: {
     width: 40,
@@ -254,6 +481,14 @@ const styles = StyleSheet.create({
     color: colors.secondary[700],
     fontWeight: '600',
   },
+  notificationActions: {
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    minHeight: 40,
+  },
+  deleteIconButton: {
+    padding: 4,
+  },
   unreadDot: {
     width: 10,
     height: 10,
@@ -270,5 +505,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.neutral.text.muted,
     marginTop: spacing.md,
+  },
+  customFooter: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xxl,
   },
 });

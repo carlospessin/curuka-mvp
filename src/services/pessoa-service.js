@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../config/firebase.js";
@@ -129,7 +130,7 @@ export async function deletePessoa(id, ownerId) {
   const pessoa = snapshot.data();
 
   if (pessoa.ownerId && pessoa.ownerId !== ownerId) {
-    throw new Error("Voce nao tem permissao para excluir este registro.");
+    throw new Error("Você não tem permissão para excluir este registro.");
   }
 
   await deleteDoc(pessoaRef);
@@ -325,7 +326,7 @@ function mapChildEventSnapshot(snapshot) {
     ownerId: data.ownerId || '',
     type: data.type || 'scan',
     childId: data.childId || '',
-    childName: data.childName || 'Crianca',
+    childName: data.childName || 'Criança',
     message: data.message || '',
     location: data.location || '',
     latitude: typeof data.latitude === 'number' ? data.latitude : undefined,
@@ -340,7 +341,7 @@ export async function createChildEvent(ownerId, eventData) {
     ownerId,
     type: eventData.type || 'scan',
     childId: eventData.childId || '',
-    childName: eventData.childName || 'Crianca',
+    childName: eventData.childName || 'Criança',
     message: eventData.message || '',
     location: eventData.location || '',
     latitude: typeof eventData.latitude === 'number' ? eventData.latitude : null,
@@ -380,6 +381,37 @@ export async function markChildEventsAsRead(ownerId) {
       })
     )
   );
+}
+
+export async function deleteChildEvent(eventId) {
+  await deleteDoc(doc(db, "childEvents", eventId));
+}
+
+export async function deleteChildEvents(eventIds = []) {
+  if (!Array.isArray(eventIds) || eventIds.length === 0) {
+    return;
+  }
+
+  const batch = writeBatch(db);
+  eventIds.forEach((eventId) => {
+    batch.delete(doc(db, "childEvents", eventId));
+  });
+  await batch.commit();
+}
+
+export async function deleteAllChildEvents(ownerId) {
+  const q = query(childEventsCollection, where('ownerId', '==', ownerId));
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((eventDoc) => {
+    batch.delete(eventDoc.ref);
+  });
+  await batch.commit();
 }
 
 // ----- user settings helpers ------------------------------------------------
