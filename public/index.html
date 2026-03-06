@@ -148,11 +148,11 @@
                 </div>
 
                 <div class="flex items-center gap-x-4">
-                    <!-- <button onclick="fakeLogin()" 
-                            class="px-5 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-3xl hover:border-slate-300 transition-colors flex items-center gap-x-2">
+                    <button onclick="openApp()"
+                        class="px-5 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-3xl hover:border-slate-300 transition-colors flex items-center gap-x-2">
                         <i class="fa-solid fa-user text-xs"></i>
                         <span>Entrar</span>
-                    </button> -->
+                    </button>
 
                     <button onclick="downloadAPK()"
                         class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 transition-all text-white text-sm font-semibold rounded-3xl flex items-center gap-x-2 shadow-lg shadow-emerald-200">
@@ -179,7 +179,7 @@
                 <a href="#download" onclick="toggleMobileMenu()" class="font-medium text-slate-600">Baixar o app</a>
 
                 <div class="pt-6 border-t flex flex-col gap-y-3">
-                    <button onclick="fakeLogin();toggleMobileMenu()"
+                    <button onclick="openApp();toggleMobileMenu()"
                         class="w-full py-4 text-slate-700 font-medium border border-slate-200 rounded-3xl">
                         Entrar na conta
                     </button>
@@ -863,6 +863,10 @@
     </div>
 
     <script>
+        function openApp() {
+            window.location.href = "/app/login";
+        }
+
         // Tailwind script run
         function initializeTailwind() {
             // Already configured via CDN
@@ -937,23 +941,8 @@
                 }, 400);
             }, 3400);
 
-            // Simulate download progress
-            console.log('%c APK download initiated (demo)', 'color:#10b981; font-family:monospace');
         }
 
-        // Fake login
-        function fakeLogin() {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:white;padding:10px 28px;border-radius:9999px;font-size:13px;white-space:nowrap;box-shadow: 0 10px 15px -3px rgb(0 0 0);z-index:99999';
-            toast.textContent = '🔑 Login simulado (demo)';
-            document.body.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 1, 1)';
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 1700);
-        }
 
         function showDemoNotification() {
             const modal = document.getElementById('demo-modal');
@@ -1151,9 +1140,6 @@
                 const thisYear = new Date().getFullYear();
                 yearSpans.forEach(span => span.textContent = thisYear);
             }
-
-            // Keyboard hint in console
-            console.log('%c 👋 Bem-vindo ao demo da landing page do Curuka! \n\nPressione CMD + K para simular download', 'font-family:monospace;color:#666;font-size:10px');
 
             // Initial demo pulse on NFC icon
             const nfcIcons = document.querySelectorAll('.nfc-tag');

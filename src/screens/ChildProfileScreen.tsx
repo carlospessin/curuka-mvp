@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 // @ts-ignore: vector-icons types sometimes missing
@@ -26,6 +26,7 @@ export function ChildProfileScreen() {
   const [profileNotFound, setProfileNotFound] = React.useState(false);
   const [locationStatus, setLocationStatus] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [sendingLocation, setSendingLocation] = React.useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -82,6 +83,7 @@ export function ChildProfileScreen() {
 
   const childById = requestedId ? state.children.find((c) => c.id === requestedId) : null;
   const child = resolvedChild || childById || (!requestedId && !requestedSlug ? state.children[0] : null);
+  const photoUrl = typeof child?.photo === 'string' ? child.photo.trim() : '';
 
   const guardians = Array.isArray(child?.guardians) ? child.guardians : [];
   const primaryGuardian = guardians.find((guardian) => guardian?.principal) || guardians[0] || null;
@@ -199,6 +201,10 @@ export function ChildProfileScreen() {
     });
   }, [child?.id, child?.name]);
 
+  React.useEffect(() => {
+    setImageLoadFailed(false);
+  }, [child?.id, photoUrl]);
+
   if (resolvingChild) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -252,7 +258,16 @@ export function ChildProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={40} color={colors.neutral.white} />
+            {photoUrl && !imageLoadFailed ? (
+              <Image
+                source={{ uri: photoUrl }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                onError={() => setImageLoadFailed(true)}
+              />
+            ) : (
+              <Ionicons name="person" size={40} color={colors.neutral.white} />
+            )}
           </View>
           <Text style={styles.name}>{child.name}</Text>
           <Text style={styles.age}>{child.age} anos</Text>
@@ -433,6 +448,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontSize: 22,
@@ -568,5 +588,4 @@ const styles = StyleSheet.create({
     color: colors.neutral.text.primary,
   },
 });
-
 

@@ -131,6 +131,18 @@ function AppShell({
     ],
     config: {
       screens: {
+        Login: 'app/login',
+        Main: {
+          path: 'app',
+          screens: {
+            Dashboard: '',
+            History: 'history',
+            Plans: 'plans',
+            Settings: 'settings',
+          },
+        },
+        Terms: 'app/terms',
+        Profile: 'app/profile',
         ChildProfile: ':slug',
       },
     },
