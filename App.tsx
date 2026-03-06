@@ -59,7 +59,9 @@ function TabNavigator() {
           fontWeight: '600',
           marginTop: 4,
         },
-
+        tabBarIconStyle: {
+          marginBottom: 2
+        },
         headerShown: false,
       })}
     >
