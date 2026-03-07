@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "110891479889",
+    "project_id": "curuka-6367a",
+    "storage_bucket": "curuka-6367a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110891479889:android:47c77fe46348c159b31970",
+        "android_client_info": {
+          "package_name": "com.curuka.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "110891479889-mq85837pot2blp253s9agbdcm83grcuq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.curuka.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "110891479889-so8uq0g2b0it1j36688o42dtk5bg5gka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMmuiL24JB2ck3Jx6l91jApstctU0lpY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "110891479889-so8uq0g2b0it1j36688o42dtk5bg5gka.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
