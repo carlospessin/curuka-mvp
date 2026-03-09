@@ -185,8 +185,8 @@ export function ChildProfileScreen() {
         longitude = location.coords.longitude;
       }
 
-      const lat = latitude.toFixed(5);
-      const lng = longitude.toFixed(5);
+      const lat = latitude.toFixed(7);
+      const lng = longitude.toFixed(7);
 
       const now = new Date();
       const hour = now.toLocaleTimeString('pt-BR', {
