@@ -1,5 +1,16 @@
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
+// index.ts
+import { AppRegistry } from 'react-native';
+import { getMessaging } from '@react-native-firebase/messaging';
+import App from './App';
+
+// Handler para mensagens quando o app está completamente fechado
+getMessaging().setBackgroundMessageHandler(async remoteMessage => {
+  console.log('[push] app fechado, mensagem recebida:', remoteMessage);
+});
+
+AppRegistry.registerComponent('main', () => App);
 
 admin.initializeApp();
 
