@@ -8,16 +8,6 @@ import { removePushToken, savePushToken } from './pessoa-service.js';
 const STORED_PUSH_TOKEN_KEY = 'curuka_push_token';
 const STORED_PUSH_OWNER_KEY = 'curuka_push_owner';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 function getProjectId() {
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ||
@@ -40,6 +30,15 @@ export async function registerForPushNotificationsAsync() {
     throw new Error('Push notifications exigem um dispositivo fisico.');
   }
 
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#2B7FFF',
+    });
+  }
+
   const { status: currentStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = currentStatus;
 
@@ -50,15 +49,6 @@ export async function registerForPushNotificationsAsync() {
 
   if (finalStatus !== 'granted') {
     throw new Error('Permissao de notificacao negada.');
-  }
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#2B7FFF',
-    });
   }
 
   const pushToken = await Notifications.getExpoPushTokenAsync({

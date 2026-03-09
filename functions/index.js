@@ -56,6 +56,7 @@ exports.sendChildEventPush = onDocumentCreated(
       sound: "default",
       title: "Curuka",
       body,
+      channelId: "default",
       data: {
         type: data.type || "event",
         childId: data.childId || "",

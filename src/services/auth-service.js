@@ -19,7 +19,7 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 import { auth } from "../config/firebase.js";
-import { registerPushToken, savePushToken } from "./push-service";
+import { syncPushTokenForUser } from "./push-notifications";
 
 let googleConfigured = false;
 
@@ -91,11 +91,9 @@ export async function loginOrRegisterWithEmail(email, password) {
 
     const user = credential.user;
 
-    // REGISTRA TOKEN PUSH
-    const token = await registerPushToken();
-    if (token) {
-      await savePushToken(user.uid, token);
-    }
+    await syncPushTokenForUser(user.uid, true).catch((err) => {
+      console.warn('push token sync failed after login', err);
+    });
 
     return user;
   } catch (error) {
@@ -136,12 +134,9 @@ export async function loginWithGoogleNative() {
     const result = await signInWithCredential(auth, credential);
 
     const user = result.user;
-
-    const token = await registerPushToken();
-    if (token) {
-      await savePushToken(user.uid, token);
-    }
-
+    await syncPushTokenForUser(user.uid, true).catch((err) => {
+      console.warn('push token sync failed after login', err);
+    });
     return user;
   } catch (error) {
     throw new Error(mapAuthError(error, "Falha ao entrar com Google."));
