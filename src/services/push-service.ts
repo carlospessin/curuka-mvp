@@ -2,6 +2,8 @@ import * as Notifications from "expo-notifications";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 
+
+
 export async function registerPushToken() {
     const { status } = await Notifications.requestPermissionsAsync();
     

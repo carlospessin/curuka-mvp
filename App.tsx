@@ -28,6 +28,17 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TermsScreen } from "./src/screens/TermsScreen";
 import { LandingScreen } from './src/screens/LandingScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ExpoNotifications from "expo-notifications";
+
+ExpoNotifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
