@@ -3,7 +3,9 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 export async function registerPushToken() {
-  const { status } = await Notifications.requestPermissionsAsync();
+    const { status } = await Notifications.requestPermissionsAsync();
+    
+    console.log("notification permission", status);
 
   if (status !== "granted") return null;
 
@@ -25,11 +27,17 @@ export async function savePushToken(uid: string, token: string) {
 
 export async function sendPushNotification(uid: string, message: string) {
 
-  const tokenDoc = await getDoc(doc(db, "pushTokens", uid));
+    const tokenDoc = await getDoc(doc(db, "pushTokens", uid));
+    
+      console.log("tokenDoc", tokenDoc.data());
+
 
   if (!tokenDoc.exists()) return;
 
-  const token = tokenDoc.data().token;
+    const token = tokenDoc.data().token;
+    
+      console.log("SENDING PUSH", token);
+
 
   await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",

@@ -19,6 +19,7 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 import { auth } from "../config/firebase.js";
+import { registerPushToken, savePushToken } from "./push-service";
 
 let googleConfigured = false;
 
@@ -88,7 +89,15 @@ export async function loginOrRegisterWithEmail(email, password) {
       ? await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword)
       : await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
 
-    return credential.user;
+    const user = credential.user;
+
+    // REGISTRA TOKEN PUSH
+    const token = await registerPushToken();
+    if (token) {
+      await savePushToken(user.uid, token);
+    }
+
+    return user;
   } catch (error) {
     throw new Error(mapAuthError(error, "Falha ao entrar com email."));
   }
@@ -109,10 +118,6 @@ export async function loginWithGooglePopup() {
 export async function loginWithGoogleNative() {
   configureGoogleSignin();
 
-  if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
-    throw new Error("Configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID para o login com Google.");
-  }
-
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const response = await GoogleSignin.signIn();
@@ -127,18 +132,18 @@ export async function loginWithGoogleNative() {
 
     const idToken = response.data.idToken;
 
-    if (!idToken) {
-      throw new Error("Token do Google não recebido.");
-    }
-
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(auth, credential);
-    return result.user;
-  } catch (error) {
-    if (isErrorWithCode(error)) {
-      throw new Error(mapAuthError(error, "Falha ao entrar com Google."));
+
+    const user = result.user;
+
+    const token = await registerPushToken();
+    if (token) {
+      await savePushToken(user.uid, token);
     }
 
+    return user;
+  } catch (error) {
     throw new Error(mapAuthError(error, "Falha ao entrar com Google."));
   }
 }
