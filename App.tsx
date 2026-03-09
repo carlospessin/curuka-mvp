@@ -135,9 +135,9 @@ function AppShell({
   React.useEffect(() => {
     const authUserId = isAuthenticated ? getAuth().currentUser?.uid : null;
 
-    // syncPushTokenForUser(authUserId || '', isAuthenticated && state.notificationsEnabled).catch((error) => {
-    //   console.error('failed to sync push token', error);
-    // });
+    syncPushTokenForUser(authUserId || '', isAuthenticated && state.notificationsEnabled).catch((error) => {
+      console.error('failed to sync push token', error);
+    });
   }, [isAuthenticated, state.notificationsEnabled]);
 
   React.useEffect(() => {

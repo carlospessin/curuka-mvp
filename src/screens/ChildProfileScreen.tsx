@@ -12,7 +12,6 @@ import { useApp } from '../context/AppContext';
 import { createChildEvent, getChildByPublicSlug } from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { Footer } from '../components/Footer';
-import { sendPushNotification } from "../services/push-service";
 import { Platform } from 'react-native';
 
 export function ChildProfileScreen() {
@@ -256,11 +255,6 @@ export function ChildProfileScreen() {
           message: `A tag de ${child.name || 'Criança'} foi escaneada às ${hour}.`,
           timestamp: now,
         });
-
-        await sendPushNotification(
-          ownerId,
-          `A tag de ${child.name || 'Criança'} foi escaneada`
-        );
 
       } catch (err) {
         console.error('failed to create scan event', err);
