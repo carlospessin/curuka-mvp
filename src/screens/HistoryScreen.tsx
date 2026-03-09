@@ -272,7 +272,7 @@ export function HistoryScreen() {
                         <iframe
                           width="100%" height="100%"
                           frameborder="0" scrolling="no"
-                          src="https://www.openstreetmap.org/export/embed.html?bbox=${item.longitude - 0.003},${item.latitude - 0.003},${item.longitude + 0.003},${item.latitude + 0.003}&layer=mapnik&marker=${item.latitude},${item.longitude}"
+                          src="https://www.openstreetmap.org/export/embed.html?bbox=${item.longitude - 0.0008},${item.latitude - 0.003},${item.longitude + 0.003},${item.latitude + 0.003}&layer=mapnik&marker=${item.latitude},${item.longitude}"
                         ></iframe>
                       </body></html>
                     `,
