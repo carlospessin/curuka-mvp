@@ -13,6 +13,7 @@ import { createChildEvent, getChildByPublicSlug } from '../services/pessoa-servi
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { Footer } from '../components/Footer';
 import { sendPushNotification } from "../services/push-service";
+import { Platform } from 'react-native';
 
 export function ChildProfileScreen() {
   const { state, emergencyMode, toggleEmergencyMode } = useApp();
@@ -134,41 +135,74 @@ export function ChildProfileScreen() {
 
   const handleSendLocation = async () => {
     if (sendingLocation) return;
+
     setLocationStatus(null);
     setSendingLocation(true);
+
     const childName = child?.name || 'Criança';
     const ownerId = (child as any)?.ownerId;
+
     if (!ownerId || !child?.id) {
-      setLocationStatus({ type: 'error', message: 'Nao foi possivel identificar o cadastro para enviar a localização.' });
-      Alert.alert('Erro', 'Nao foi possivel identificar o cadastro para gravar a localização.');
-      setSendingLocation(false);
-      return;
-    }
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== 'granted') {
-      setLocationStatus({ type: 'error', message: 'Permissao de localização negada.' });
-      Alert.alert('Permissao negada', 'Permita acesso a localização para enviar ao responsavel.');
+      setLocationStatus({
+        type: 'error',
+        message: 'Nao foi possivel identificar o cadastro.',
+      });
+      Alert.alert('Erro', 'Nao foi possivel identificar o cadastro.');
       setSendingLocation(false);
       return;
     }
 
     try {
-      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const lat = current.coords.latitude.toFixed(5);
-      const lng = current.coords.longitude.toFixed(5);
-      const when = new Date();
-      const hour = when.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const locationLabel = `Lat ${lat}, Lng ${lng}`;
+      let latitude: number;
+      let longitude: number;
+
+      if (Platform.OS === 'web') {
+        if (!navigator.geolocation) {
+          throw new Error('Geolocalizacao nao suportada no navegador');
+        }
+
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          });
+        });
+
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      } else {
+        const permission = await Location.requestForegroundPermissionsAsync();
+
+        if (permission.status !== 'granted') {
+          throw new Error('Permissao negada');
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        latitude = location.coords.latitude;
+        longitude = location.coords.longitude;
+      }
+
+      const lat = latitude.toFixed(5);
+      const lng = longitude.toFixed(5);
+
+      const now = new Date();
+      const hour = now.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
       await createChildEvent(ownerId, {
         type: 'location',
-        childId: child?.id,
+        childId: child.id,
         childName,
-        location: locationLabel,
-        message: `Localização de ${childName} enviada as ${hour}.`,
+        location: `Lat ${lat}, Lng ${lng}`,
+        message: `Localização de ${childName} enviada às ${hour}.`,
         latitude: Number(lat),
         longitude: Number(lng),
-        timestamp: when,
+        timestamp: now,
       });
 
       await sendPushNotification(
@@ -176,12 +210,24 @@ export function ChildProfileScreen() {
         `Localização de ${childName} enviada`
       );
 
+      setLocationStatus({
+        type: 'success',
+        message: 'Localização enviada com sucesso!',
+      });
 
-      setLocationStatus({ type: 'success', message: `Localização enviada com sucesso!` });
-      Alert.alert('Localização enviada', `A localização foi enviada ao responsavel.`);
-    } catch {
-      setLocationStatus({ type: 'error', message: 'Falha ao enviar localização. Tente novamente.' });
-      Alert.alert('Erro', 'Nao foi possivel capturar a localização.');
+      Alert.alert('Localização enviada', 'A localização foi enviada ao responsável.');
+    } catch (error: any) {
+      console.error('location error:', error);
+
+      setLocationStatus({
+        type: 'error',
+        message: 'Falha ao obter localização.',
+      });
+
+      Alert.alert(
+        'Erro',
+        'Nao foi possivel obter a localização. Verifique as permissões do navegador ou do celular.'
+      );
     } finally {
       setSendingLocation(false);
     }

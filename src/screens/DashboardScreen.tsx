@@ -65,7 +65,11 @@ type NfcWriteStatus =
   }
   | null;
 
-const PUBLIC_WEB_BASE_URL = (process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://curuka-mvp.vercel.app').replace(/\/+$/, '');
+const PUBLIC_WEB_BASE_URL =
+  process.env.EXPO_PUBLIC_WEB_APP_URL ||
+  (typeof window !== 'undefined'
+    ? window.location.origin
+    : 'https://curuka-mvp.vercel.app');
 
 const createEmptyGuardian = () => ({
   name: '',
