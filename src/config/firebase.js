@@ -1,26 +1,26 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import {
-  initializeAuth,
-  getReactNativePersistence
-} from "firebase/auth";
+import { getAuth, initializeAuth } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { Platform } from "react-native";
 import { firebaseConfig } from "./firebase-config.js";
 
-const missingConfig = Object.entries(firebaseConfig)
-  .filter(([, value]) => !value || String(value).startsWith("REPLACE_WITH_"))
-  .map(([key]) => key);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-if (missingConfig.length > 0) {
-  throw new Error(`Firebase configuration is missing: ${missingConfig.join(", ")}`);
+let auth;
+
+if (Platform.OS === "web") {
+  auth = getAuth(app);
+} else {
+  const { getReactNativePersistence } = require("firebase/auth");
+
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
 }
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+export { auth };
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);

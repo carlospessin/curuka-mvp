@@ -17,6 +17,9 @@ import {
   loginWithGooglePopup,
 } from '../services/auth-service';
 import { borderRadius, colors, shadows, spacing } from '../theme/colors';
+import { getAuth } from "firebase/auth";
+import { registerPushToken, savePushToken } from "../services/push-service";
+
 
 export function LoginScreen() {
   const [email, setEmail] = React.useState('');
@@ -30,6 +33,15 @@ export function LoginScreen() {
       setIsLoadingEmail(true);
       setLoginError('');
       await loginOrRegisterWithEmail(email, password);
+
+      const user = getAuth().currentUser;
+
+      if (user) {
+        const token = await registerPushToken();
+        if (token) {
+          await savePushToken(user.uid, token);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao entrar com email.';
       setLoginError(message);
@@ -50,6 +62,15 @@ export function LoginScreen() {
       }
 
       await loginWithGoogleNative();
+
+      const user = getAuth().currentUser;
+
+      if (user) {
+        const token = await registerPushToken();
+        if (token) {
+          await savePushToken(user.uid, token);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao entrar com Google.';
       setLoginError(message);

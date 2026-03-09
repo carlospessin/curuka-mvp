@@ -12,6 +12,7 @@ import { useApp } from '../context/AppContext';
 import { createChildEvent, getChildByPublicSlug } from '../services/pessoa-service.js';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { Footer } from '../components/Footer';
+import { sendPushNotification } from "../services/push-service";
 
 export function ChildProfileScreen() {
   const { state, emergencyMode, toggleEmergencyMode } = useApp();
@@ -170,6 +171,12 @@ export function ChildProfileScreen() {
         timestamp: when,
       });
 
+      await sendPushNotification(
+        ownerId,
+        `Localização de ${childName} enviada`
+      );
+
+
       setLocationStatus({ type: 'success', message: `Localização enviada com sucesso!` });
       Alert.alert('Localização enviada', `A localização foi enviada ao responsavel.`);
     } catch {
@@ -181,25 +188,50 @@ export function ChildProfileScreen() {
   };
 
   React.useEffect(() => {
-    const ownerId = (child as any)?.ownerId;
-    if (!ownerId || !child?.id) return;
-    if (scanLoggedRef.current[child.id]) return;
 
-    scanLoggedRef.current[child.id] = true;
+    const registerScan = async () => {
 
-    const now = new Date();
-    const hour = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    createChildEvent(ownerId, {
-      type: 'scan',
-      childId: child.id,
-      childName: child.name || 'Criança',
-      message: `A tag de ${child.name || 'Criança'} foi escaneada às ${hour}.`,
-      timestamp: now,
-    }).catch((err) => {
-      console.error('failed to create scan event', err);
-      scanLoggedRef.current[child.id] = false;
-    });
-  }, [child?.id, child?.name]);
+      const ownerId = (child as any)?.ownerId;
+
+      if (!ownerId || !child?.id) return;
+
+      if (scanLoggedRef.current[child.id]) return;
+
+      scanLoggedRef.current[child.id] = true;
+
+      setTimeout(() => {
+        delete scanLoggedRef.current[child.id];
+      }, 30000);
+
+      try {
+
+        const now = new Date();
+        const hour = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        await createChildEvent(ownerId, {
+          type: 'scan',
+          childId: child.id,
+          childName: child.name || 'Criança',
+          message: `A tag de ${child.name || 'Criança'} foi escaneada às ${hour}.`,
+          timestamp: now,
+        });
+
+        await sendPushNotification(
+          ownerId,
+          `A tag de ${child.name || 'Criança'} foi escaneada`
+        );
+
+      } catch (err) {
+        console.error('failed to create scan event', err);
+        scanLoggedRef.current[child.id] = false;
+      }
+
+    };
+
+    registerScan();
+
+  }, [child?.id]);
+
 
   React.useEffect(() => {
     setImageLoadFailed(false);
