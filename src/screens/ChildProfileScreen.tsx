@@ -205,15 +205,6 @@ export function ChildProfileScreen() {
         timestamp: now,
       });
 
-      try {
-        await sendPushNotification(
-          ownerId,
-          `Localização de ${childName} enviada`
-        );
-      } catch (err) {
-        console.warn("Push notification falhou:", err);
-      }
-
       setLocationStatus({
         type: 'success',
         message: 'Localização enviada com sucesso!',

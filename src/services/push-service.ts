@@ -19,6 +19,7 @@ export async function savePushToken(uid: string, token: string) {
     doc(db, "pushTokens", uid),
     {
       token,
+      ownerId: uid,
       updatedAt: new Date(),
     },
     { merge: true }
