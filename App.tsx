@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -30,15 +30,6 @@ import { LandingScreen } from './src/screens/LandingScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ExpoNotifications from "expo-notifications";
 
-if (Platform.OS === 'android') {
-  ExpoNotifications.setNotificationChannelAsync('default', {
-    name: 'Curuka',
-    importance: ExpoNotifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#2B7FFF',
-    sound: 'default',
-  });
-}
 
 ExpoNotifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -146,10 +137,11 @@ function AppShell({
     const authUserId = isAuthenticated ? getAuth().currentUser?.uid : null;
 
     if (!authUserId) return;
+    syncPushTokenForUser(authUserId, true);
 
-    syncPushTokenForUser(authUserId || '', isAuthenticated && state.notificationsEnabled).catch((error) => {
-      console.error('failed to sync push token', error);
-    });
+    // syncPushTokenForUser(authUserId || '', isAuthenticated && state.notificationsEnabled).catch((error) => {
+    //   console.error('failed to sync push token', error);
+    // });
   }, [isAuthenticated]);
 
   React.useEffect(() => {
