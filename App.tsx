@@ -30,6 +30,16 @@ import { LandingScreen } from './src/screens/LandingScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ExpoNotifications from "expo-notifications";
 
+if (Platform.OS === 'android') {
+  ExpoNotifications.setNotificationChannelAsync('default', {
+    name: 'Curuka',
+    importance: ExpoNotifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#2B7FFF',
+    sound: 'default',
+  });
+}
+
 ExpoNotifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
