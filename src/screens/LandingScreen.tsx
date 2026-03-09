@@ -11,11 +11,15 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { Footer } from "../components/Footer";
+import Constants from 'expo-constants';
 
 
 export function LandingScreen({ navigation }: { navigation: any }) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const versionCode = Constants.expoConfig?.android?.versionCode ?? 0;
+  const fullVersion = `v${appVersion}+${versionCode}-dev`;
 
   const openApp = () => navigation.navigate("Login");
 
@@ -153,7 +157,7 @@ export function LandingScreen({ navigation }: { navigation: any }) {
 
       <View style={styles.footer}>
         <Footer />
-        <Text style={styles.footerTextVersion}>v1.0.0-beta</Text>
+        <Text style={styles.footerTextVersion}>{fullVersion}</Text>
       </View>
     </ScrollView>
   );

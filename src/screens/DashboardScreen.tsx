@@ -30,6 +30,8 @@ import { Platform } from 'react-native';
 import ShieldIcon from '../components/ShieldIcon';
 import StatusPulse from '../components/StatusPulse';
 import { Footer } from '../components/Footer';
+import * as ImagePicker from 'expo-image-picker';
+
 
 
 type ChildMedicalInfo = {
@@ -124,6 +126,9 @@ export function DashboardScreen() {
 
   const canEditMedicalInfo = plan === 'plus' || plan === 'premium';
   const canAddMoreGuardians = plan === 'plus' || plan === 'premium';
+
+  const [photoFile, setPhotoFile] = useState<{ uri: string; blob: Blob } | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const childrenList: ChildProfile[] =
     remoteChildren.length > 0
@@ -358,6 +363,8 @@ export function DashboardScreen() {
     setEditingChildId(null);
     setFormData(EMPTY_CHILD_FORM);
     setMedicalInfoExpanded(false);
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setChildModalVisible(true);
   };
 
@@ -367,6 +374,9 @@ export function DashboardScreen() {
         ? profile.guardians
         : [createEmptyGuardian()];
     const hasPrincipal = rawGuardians.some((guardian) => Boolean((guardian as any)?.principal));
+
+    setPhotoFile(null);
+    setPhotoPreview(profile.photo || null);
 
     setEditingChildId(profile.id);
     setFormData({
@@ -385,6 +395,31 @@ export function DashboardScreen() {
     });
     setMedicalInfoExpanded(true);
     setChildModalVisible(true);
+  };
+
+  // Adicione essa função junto aos handlers
+  const handlePickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permissão negada', 'Permita o acesso à galeria para escolher uma foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    const response = await fetch(asset.uri);
+    const blob = await response.blob();
+
+    setPhotoFile({ uri: asset.uri, blob });
+    setPhotoPreview(asset.uri);
   };
 
 
@@ -454,7 +489,12 @@ export function DashboardScreen() {
     setSavingChild(true);
 
     try {
-      const docId = await saveChildProfile(user.uid, payload, editingChildId || undefined);
+      const docId = await saveChildProfile(
+        user.uid,
+        payload,
+        editingChildId || undefined,
+        (photoFile?.blob ?? null) as any
+      );
       // the watcher will pick up the new/updated document automatically,
       // but we make a defensive update in case the subscription lags.
       setRemoteChildren((prev) => {
@@ -1118,14 +1158,21 @@ export function DashboardScreen() {
             <Text style={styles.modalTitle}>{editingChildId ? 'Editar Criança' : 'Cadastrar Criança'}</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Foto (URL)</Text>
-              <TextInput
-                value={formData.photo}
-                onChangeText={(value) => setFormData((prev) => ({ ...prev, photo: value }))}
-                placeholder="https://..."
-                style={styles.input}
-                autoCapitalize="none"
-              />
+              <Text style={styles.inputLabel}>Foto</Text>
+              <TouchableOpacity style={styles.photoPickerButton} onPress={handlePickPhoto}>
+                {photoPreview ? (
+                  <Image
+                    source={{ uri: photoPreview }}
+                    style={styles.photoPickerPreview}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.photoPickerPlaceholder}>
+                    <Ionicons name="camera-outline" size={28} color={colors.neutral.text.muted} />
+                    <Text style={styles.photoPickerText}>Toque para adicionar foto</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <Text style={styles.inputLabel}>Nome</Text>
               <TextInput
@@ -1973,5 +2020,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.greenSoft,
     fontWeight: '600',
+  },
+  photoPickerButton: {
+    width: '100%',
+    height: 120,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.neutral.border,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  photoPickerPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  photoPickerPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral.background,
+    gap: 6,
+  },
+  photoPickerText: {
+    fontSize: 13,
+    color: colors.neutral.text.muted,
   },
 });

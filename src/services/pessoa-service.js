@@ -34,6 +34,13 @@ async function uploadPessoaFoto(file, userId, pessoaId) {
   return getDownloadURL(photoRef);
 }
 
+async function uploadChildPhoto(blob, ownerId, childId) {
+  if (!blob) return null;
+  const photoRef = ref(storage, `children/${ownerId}/${childId}`);
+  await uploadBytes(photoRef, blob);
+  return getDownloadURL(photoRef);
+}
+
 function sortByCreatedAtDesc(items) {
   return items.sort((a, b) => {
     const aTime = a.createdAt?.seconds || 0;
@@ -227,59 +234,51 @@ export function watchChildrenList(ownerId, onData, onError) {
   );
 }
 
-export async function saveChildProfile(ownerId, childData, childId) {
-  // Ensure slugs do not expose child names. We generate a compact
-  // identifier-only slug from the document id.
+export async function saveChildProfile(ownerId, childData, childId, photoBlob = null) {
   const makeSlug = (idToken = '') => {
-    const token = String(idToken)
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+    const token = String(idToken).toLowerCase().replace(/[^a-z0-9]/g, '');
     return token ? `c-${token}` : `c-${Date.now().toString(36)}`;
   };
 
   if (childId) {
-    // updates should not overwrite an existing slug unless the caller
-    // explicitly passes a `slug` field in childData.
+    let photoUrl = childData.photo || null;
+    if (photoBlob) {
+      photoUrl = await uploadChildPhoto(photoBlob, ownerId, childId);
+    }
+
     const updatePayload = {
       ownerId,
       publicProfile: childData.publicProfile ?? true,
       ...childData,
+      photo: photoUrl,
       updatedAt: serverTimestamp(),
     };
 
-    try {
-      await setDoc(
-        doc(db, 'children', childId),
-        updatePayload,
-        { merge: true }
-      );
-      return childId;
-    } catch (err) {
-      console.error('saveChildProfile (update) failed', err);
-      throw err;
-    }
+    await setDoc(doc(db, 'children', childId), updatePayload, { merge: true });
+    return childId;
+
   } else {
-    try {
-      // create document first to obtain id for unique slug suffix
-      const docRef = await addDoc(childrenCollection, {
-        ownerId,
-        publicProfile: childData.publicProfile ?? true,
-        ...childData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+    const docRef = await addDoc(childrenCollection, {
+      ownerId,
+      publicProfile: childData.publicProfile ?? true,
+      ...childData,
+      photo: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-      // if the caller didn't provide a slug, generate one now
-      if (!childData.slug) {
-        const generated = makeSlug(docRef.id.slice(0, 12));
-        await updateDoc(docRef, { slug: generated, updatedAt: serverTimestamp() });
-      }
-
-      return docRef.id;
-    } catch (err) {
-      console.error('saveChildProfile (create) failed', err);
-      throw err;
+    let photoUrl = null;
+    if (photoBlob) {
+      photoUrl = await uploadChildPhoto(photoBlob, ownerId, docRef.id);
+      await updateDoc(docRef, { photo: photoUrl, updatedAt: serverTimestamp() });
     }
+
+    if (!childData.slug) {
+      const generated = makeSlug(docRef.id.slice(0, 12));
+      await updateDoc(docRef, { slug: generated, updatedAt: serverTimestamp() });
+    }
+
+    return docRef.id;
   }
 }
 
