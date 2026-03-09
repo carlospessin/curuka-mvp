@@ -178,7 +178,7 @@ export function ChildProfileScreen() {
         }
 
         const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.Highest,
         });
 
         latitude = location.coords.latitude;
@@ -213,11 +213,6 @@ export function ChildProfileScreen() {
       } catch (err) {
         console.warn("Push notification falhou:", err);
       }
-
-      await sendPushNotification(
-        ownerId,
-        `Localização de ${childName} enviada`
-      );
 
       setLocationStatus({
         type: 'success',
