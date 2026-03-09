@@ -27,11 +27,14 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { TermsScreen } from "./src/screens/TermsScreen";
 import { LandingScreen } from './src/screens/LandingScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -51,18 +54,19 @@ function TabNavigator() {
             case 'Settings':
               iconName = focused ? 'settings' : 'settings-outline';
               break;
-          }
+          };
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary[600],
         tabBarInactiveTintColor: colors.neutral.text.muted,
+
         tabBarStyle: {
           backgroundColor: colors.neutral.card,
           borderTopColor: colors.neutral.border,
           paddingTop: 8,
-          paddingBottom: 20,
-          height: 80,
+          paddingBottom: insets.bottom + 8,
+          height: 70 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -89,6 +93,33 @@ function AppShell({
   isAuthenticated: boolean;
 }) {
   const { state } = useApp();
+  const linking = {
+    prefixes: [
+      'com.curuka.app://',
+      'curuka://',
+      'http://localhost:19006',
+      'http://localhost:8081',
+      process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://curuka-mvp.vercel.app',
+    ],
+    config: {
+      screens: {
+        Landing: '',
+        Login: 'login',
+        Main: {
+          path: 'app',
+          screens: {
+            Dashboard: '',
+            History: 'history',
+            Plans: 'plans',
+            Settings: 'settings',
+          },
+        },
+        Terms: 'app/terms',
+        Profile: 'app/profile',
+        ChildProfile: 'c/:slug',
+      },
+    },
+  };
 
   React.useEffect(() => {
     const authUserId = isAuthenticated ? getAuth().currentUser?.uid : null;
@@ -123,32 +154,7 @@ function AppShell({
     };
   }, []);
 
-  const linking = {
-    prefixes: [
-      'curuka://',
-      'http://localhost:19006',
-      'http://localhost:8081',
-      process.env.EXPO_PUBLIC_WEB_APP_URL || 'https://curuka-mvp.vercel.app',
-    ],
-    config: {
-      screens: {
-        Landing: '',
-        Login: 'login',
-        Main: {
-          path: 'app',
-          screens: {
-            Dashboard: '',
-            History: 'history',
-            Plans: 'plans',
-            Settings: 'settings',
-          },
-        },
-        Terms: 'app/terms',
-        Profile: 'app/profile',
-        ChildProfile: 'c/:slug',
-      },
-    },
-  };
+
 
   return (
     <NavigationContainer linking={linking} ref={navigationRef} onReady={flushPendingNavigation}>

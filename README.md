@@ -91,6 +91,16 @@ childEvents\
 settings\
 pushTokens
 
+## Executar
+
+rodar em dispositivo físico:
+```
+adb kill-server
+adb reverse tcp:8081 tcp:8081
+npx expo run:android (para instalar o apk)
+npx expo start --dev-client
+```
+
 ------------------------------------------------------------------------
 
 ## Direitos

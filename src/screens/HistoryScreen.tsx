@@ -8,6 +8,7 @@ import {
   Linking,
   ActivityIndicator,
   Alert,
+  Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,17 @@ import {
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 import { AppNotification } from '../types';
 import { Footer } from '../components/Footer';
+import { WebView } from 'react-native-webview';
+
+
+let MapView: any = null;
+let Marker: any = null;
+
+if (Platform.OS !== "web") {
+  const Maps = require("react-native-maps");
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+}
 
 export function HistoryScreen() {
   const { state } = useApp();
@@ -105,16 +117,17 @@ export function HistoryScreen() {
   };
 
   const openMapForNotification = async (item: AppNotification) => {
-    if (selectionMode || item.type !== 'location') return;
-    if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') return;
+    if (typeof item.latitude !== "number" || typeof item.longitude !== "number") return;
 
-    const url = `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+    const lat = item.latitude;
+    const lng = item.longitude;
+
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) throw new Error('cannot-open-map');
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel abrir o mapa para essa localização.');
+      Alert.alert("Erro", "Nao foi possivel abrir o mapa.");
     }
   };
 
@@ -239,9 +252,34 @@ export function HistoryScreen() {
           <Text style={styles.notificationText}>{item.message || defaultMessage}</Text>
           {item.location ? <Text style={styles.notificationMeta}>Local: {item.location}</Text> : null}
           <Text style={styles.notificationMeta}>{formatDateTime(item.timestamp)}</Text>
-          {item.type === 'location' && !selectionMode ? (
-            <Text style={styles.mapHint}>Toque para abrir no mapa</Text>
-          ) : null}
+          {item.type === "location" &&
+            typeof item.latitude === "number" &&
+            typeof item.longitude === "number" &&
+            !selectionMode &&
+            Platform.OS !== "web" && (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => openMapForNotification(item)}
+                style={styles.mapPreviewContainer}
+              >
+                <WebView
+                  style={styles.mapPreview}
+                  scrollEnabled={false}
+                  pointerEvents="none"
+                  source={{
+                    html: `
+                      <html><body style="margin:0;padding:0">
+                        <iframe
+                          width="100%" height="100%"
+                          frameborder="0" scrolling="no"
+                          src="https://www.openstreetmap.org/export/embed.html?bbox=${item.longitude - 0.003},${item.latitude - 0.003},${item.longitude + 0.003},${item.latitude + 0.003}&layer=mapnik&marker=${item.latitude},${item.longitude}"
+                        ></iframe>
+                      </body></html>
+                    `,
+                  }}
+                />
+              </TouchableOpacity>
+            )}
         </View>
 
         <View style={styles.notificationActions}>
@@ -509,5 +547,29 @@ const styles = StyleSheet.create({
   customFooter: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
+  },
+  mapPreviewContainer: {
+    marginTop: 8,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+
+  mapPreview: {
+    width: "100%",
+    height: 140,
+    borderRadius: 10,
+  },
+
+  mapLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  mapLinkText: {
+    fontSize: 13,
+    color: colors.secondary[600],
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
