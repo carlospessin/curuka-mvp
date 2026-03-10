@@ -18,14 +18,14 @@ export function LandingScreen({ navigation }: { navigation: any }) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const versionCode = Constants.expoConfig?.android?.versionCode ?? 0;
+  const versionCode = Constants.nativeBuildVersion ?? '0';
   const fullVersion = `v${appVersion}+${versionCode}-dev`;
 
   const openApp = () => navigation.navigate("Login");
 
   const downloadAPK = () => {
     if (typeof window !== "undefined") {
-      window.location.href = "/apk/curuka-1.0.0.apk";
+      window.location.href = "/apk/curuka.apk";
     }
   };
 
