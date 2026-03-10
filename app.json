@@ -20,10 +20,10 @@
       }
     },
     "android": {
+      "versionCode": 32,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff",
-        "versionCode": 28
+        "backgroundColor": "#ffffff"
       },
       "permissions": [
         "NFC",

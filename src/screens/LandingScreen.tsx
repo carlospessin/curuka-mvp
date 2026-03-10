@@ -41,9 +41,9 @@ export function LandingScreen({ navigation }: { navigation: any }) {
         </View>
 
         <View style={styles.navActions}>
-          <TouchableOpacity style={styles.loginBtn} onPress={openApp}>
+          {/* <TouchableOpacity style={styles.loginBtn} onPress={openApp}>
             <Text style={styles.loginBtnText}>Entrar</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={styles.downloadNavBtn} onPress={downloadAPK}>
             <Ionicons name="download-outline" size={14} color={colors.neutral.white} />
             <Text style={styles.downloadNavText}>Baixar APK</Text>

@@ -10,7 +10,8 @@
     "web:build": "expo export --platform web",
     "adb": "adb kill-server && adb reverse tcp:8081 tcp:8081",
     "dev:build": "npm run adb && npx expo run:android",
-    "dev:metro": "npm run adb && npx expo start --dev-client"
+    "dev:metro": "npm run adb && npx expo start --dev-client",
+    "build:apk": "cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
