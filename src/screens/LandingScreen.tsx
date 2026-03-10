@@ -18,8 +18,7 @@ export function LandingScreen({ navigation }: { navigation: any }) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const versionCode = Constants.nativeBuildVersion ?? '0';
-  const fullVersion = `v${appVersion}+${versionCode}-dev`;
+  const fullVersion = `v${appVersion}+34-dev`;
 
   const openApp = () => navigation.navigate("Login");
 
