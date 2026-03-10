@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 // @ts-ignore: vector-icons types sometimes missing
@@ -28,6 +28,8 @@ export function ChildProfileScreen() {
   const [locationStatus, setLocationStatus] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [sendingLocation, setSendingLocation] = React.useState(false);
   const [imageLoadFailed, setImageLoadFailed] = React.useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = React.useState(false);
+
 
   React.useEffect(() => {
     let cancelled = false;
@@ -328,7 +330,11 @@ export function ChildProfileScreen() {
         )}
 
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
+          <TouchableOpacity
+            style={styles.avatar}
+            onPress={() => photoUrl && !imageLoadFailed && setPhotoModalVisible(true)}
+            activeOpacity={photoUrl && !imageLoadFailed ? 0.8 : 1}
+          >
             {photoUrl && !imageLoadFailed ? (
               <Image
                 source={{ uri: photoUrl }}
@@ -339,7 +345,7 @@ export function ChildProfileScreen() {
             ) : (
               <Ionicons name="person" size={40} color={colors.neutral.white} />
             )}
-          </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{child.name}</Text>
           <Text style={styles.age}>{child.age} anos</Text>
         </View>
@@ -429,6 +435,31 @@ export function ChildProfileScreen() {
           </View>
         </View>
       )}
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={photoModalVisible}
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.photoModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setPhotoModalVisible(false)}
+        >
+          <Image
+            source={{ uri: photoUrl }}
+            style={styles.photoModalImage}
+            resizeMode="contain"
+          />
+          <TouchableOpacity
+            style={styles.photoModalClose}
+            onPress={() => setPhotoModalVisible(false)}
+          >
+            <Ionicons name="close" size={22} color={colors.neutral.white} />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -665,6 +696,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.neutral.text.primary,
+  },
+  photoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalImage: {
+    width: '85%',
+    height: '60%',
+    borderRadius: borderRadius.lg,
+  },
+  photoModalClose: {
+    position: 'absolute',
+    top: 52,
+    right: spacing.lg,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

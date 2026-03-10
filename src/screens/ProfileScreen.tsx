@@ -23,6 +23,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
   const [deleting, setDeleting] = React.useState(false);
   const [confirmVisible, setConfirmVisible] = React.useState(false);
 
+
   const handleSave = async () => {
     try {
       setSaving(true);

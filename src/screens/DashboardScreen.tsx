@@ -8,7 +8,6 @@ import {
   Alert,
   Modal,
   TextInput,
-  Switch,
   ActivityIndicator,
   Image,
   Linking,
@@ -19,7 +18,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusIndicator } from '../components/StatusIndicator';
-import { ProtectionScoreCircle } from '../components/ProtectionScoreCircle';
 import { PlanBadge } from '../components/PlanBadge';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, borderRadius, shadows, radius } from '../theme/colors';
@@ -27,11 +25,9 @@ import { getAuth } from 'firebase/auth';
 import type { Child } from '../types';
 import { removeChildProfile, saveChildProfile, setChildTagStatus, watchChildrenList } from '../services/pessoa-service.js';
 import { Platform } from 'react-native';
-import ShieldIcon from '../components/ShieldIcon';
-import StatusPulse from '../components/StatusPulse';
 import { Footer } from '../components/Footer';
 import * as ImagePicker from 'expo-image-picker';
-
+import { compressImage } from '../utils/image-utils';
 
 
 type ChildMedicalInfo = {
@@ -409,17 +405,17 @@ export function DashboardScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 1, // captura máxima, compressão feita depois
     });
 
     if (result.canceled) return;
 
-    const asset = result.assets[0];
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
+    const compressed = await compressImage(result.assets[0].uri, {
+      maxSizeKB: 150,
+    });
 
-    setPhotoFile({ uri: asset.uri, blob });
-    setPhotoPreview(asset.uri);
+    setPhotoFile(compressed);
+    setPhotoPreview(compressed.uri);
   };
 
 
@@ -502,7 +498,7 @@ export function DashboardScreen() {
         return [...updated, { id: docId, ownerId: user.uid, ...payload }];
       });
 
-      Alert.alert('Sucesso', `Dados da criança gravados com sucesso (${docId}).`);
+      // Alert.alert('Sucesso', `Dados da criança gravados com sucesso (${docId}).`);
       setChildModalVisible(false);
       setFormData(EMPTY_CHILD_FORM);
       setEditingChildId(null);
