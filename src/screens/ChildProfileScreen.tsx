@@ -378,7 +378,7 @@ export function ChildProfileScreen() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoValue}>
-                    {guardian.name || 'Responsavel sem nome'} {guardian.principal ? '(Principal)' : ''}
+                    {guardian.name || 'Responsável sem nome'} {guardian.principal ? '(Principal)' : ''}
                   </Text>
                   <Text style={styles.infoLabel}>{guardian.phone || 'Telefone não informado'}</Text>
                   <Text style={styles.infoLabel}>WhatsApp: {guardian.whatsapp ? 'Sim' : 'Nao'}</Text>
@@ -386,7 +386,7 @@ export function ChildProfileScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.infoLabel}>Nenhum responsavel cadastrado.</Text>
+            <Text style={styles.infoLabel}>Nenhum responsável cadastrado.</Text>
           )}
         </Card>
 
@@ -408,7 +408,7 @@ export function ChildProfileScreen() {
                   <Ionicons name="medkit" size={20} color={colors.status.warning} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Planos de saude</Text>
+                  <Text style={styles.infoLabel}>Planos de saúde</Text>
                   <Text style={styles.infoValue}>{child.medicalInfo.healthPlans || 'Nao informado'}</Text>
                 </View>
               </View>
@@ -418,7 +418,7 @@ export function ChildProfileScreen() {
                   <Ionicons name="document-text" size={20} color={colors.secondary[500]} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Outras informacoes</Text>
+                  <Text style={styles.infoLabel}>Outras informações</Text>
                   <Text style={styles.infoValue}>{child.medicalInfo.otherInfo || 'Nao informado'}</Text>
                 </View>
               </View>

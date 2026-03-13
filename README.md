@@ -101,6 +101,29 @@ npx expo run:android (para instalar o apk)
 npx expo start --dev-client
 ```
 
+## gerar apk
+
+Remove-Item -Recurse -Force android\.cxx -ErrorAction Ignore
+Remove-Item -Recurse -Force android\app\.cxx -ErrorAction Ignore
+Remove-Item -Recurse -Force android\build -ErrorAction Ignore
+Remove-Item -Recurse -Force android\app\build -ErrorAction Ignore
+Remove-Item -Recurse -Force node_modules
+npm install
+
+faça backup do google-services.json
+
+npx expo prebuild --clean
+
+
+```
+cd android
+./gradlew clean
+./gradlew assembleDebug
+./gradlew assembleRelease
+```
+
+android/app/build/outputs/apk/debug/app-debug.apk
+
 ------------------------------------------------------------------------
 
 ## Direitos

@@ -188,7 +188,7 @@ export function HistoryScreen() {
 
     Alert.alert(
       'Excluir todas',
-      'Todas as notificações do historico serao removidas permanentemente.',
+      'Todas as notificações do histórico serao removidas permanentemente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -303,7 +303,7 @@ export function HistoryScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Historico</Text>
+          <Text style={styles.title}>Histórico</Text>
           <Text style={styles.subtitle}>Notificações de tag e localização</Text>
         </View>
         <PlanBadge plan={plan} />
@@ -366,7 +366,7 @@ export function HistoryScreen() {
       {loading || deleting ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.primary[600]} />
-          <Text style={styles.emptyText}>{loading ? 'Carregando notificações...' : 'Atualizando historico...'}</Text>
+          <Text style={styles.emptyText}>{loading ? 'Carregando notificações...' : 'Atualizando histórico...'}</Text>
         </View>
       ) : (
         <FlatList

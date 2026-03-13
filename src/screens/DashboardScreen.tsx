@@ -12,7 +12,7 @@ import {
   Image,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
@@ -87,6 +87,7 @@ const EMPTY_CHILD_FORM: ChildFormData = {
 };
 
 export function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { state, unreadNotifications } = useApp();
   const { children, notifications, protectionScore, plan } = state;
@@ -102,7 +103,7 @@ export function DashboardScreen() {
 
   const auth = getAuth();
   const user = auth.currentUser;
-  const [userName, setUserName] = useState(user?.displayName?.split(' ')[0] || 'Responsavel');
+  const [userName, setUserName] = useState(user?.displayName?.split(' ')[0] || 'Responsável');
 
   const [remoteChildren, setRemoteChildren] = useState<ChildProfile[]>([]);
   const [loadingChild, setLoadingChild] = useState(true);
@@ -198,7 +199,7 @@ export function DashboardScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      const nextName = getAuth().currentUser?.displayName?.split(' ')[0] || 'Responsavel';
+      const nextName = getAuth().currentUser?.displayName?.split(' ')[0] || 'Responsável';
       setUserName(nextName);
     }, [])
   );
@@ -446,7 +447,7 @@ export function DashboardScreen() {
       .filter((guardian) => guardian.name || guardian.phone);
 
     if (normalizedGuardians.length === 0 || !normalizedGuardians[0].name || !normalizedGuardians[0].phone) {
-      Alert.alert('Campo obrigatorio', 'Informe ao menos um responsavel com telefone.');
+      Alert.alert('Campo obrigatorio', 'Informe ao menos um responsável com telefone.');
       return;
     }
 
@@ -962,7 +963,7 @@ export function DashboardScreen() {
         </Card>
 
         <Card
-          title="Ultima Atividade"
+          title="Última Atividade"
           subtitle="Notificação mais recente"
           onPress={() => navigation.navigate('History')}
         >
@@ -1026,7 +1027,7 @@ export function DashboardScreen() {
             <View style={[styles.quickActionIcon, { backgroundColor: colors.secondary[100] }]}>
               <Ionicons name="time" size={20} color={colors.secondary[600]} />
             </View>
-            <Text style={styles.quickActionText}>Historico</Text>
+            <Text style={styles.quickActionText}>Histórico</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionButton}>
@@ -1060,7 +1061,7 @@ export function DashboardScreen() {
         onRequestClose={closeNfcModal}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: spacing.md + Math.max(insets.bottom, spacing.sm) }]}>
             <View style={styles.nfcModalHeader}>
               <Text style={styles.modalTitle}>Gravar NFC</Text>
               <TouchableOpacity onPress={closeNfcModal} disabled={writingNfc}>
@@ -1071,7 +1072,7 @@ export function DashboardScreen() {
             <Text style={styles.nfcTargetText}>
               Perfil: <Text style={styles.nfcTargetName}>{nfcTargetChild?.name || 'Criança'}</Text>
             </Text>
-            <Text style={styles.nfcLinkText}>{buildChildProfileLink(nfcTargetChild) || 'Link indisponivel'}</Text>
+            {/* <Text style={styles.nfcLinkText}>{buildChildProfileLink(nfcTargetChild) || 'Link indisponivel'}</Text> */}
 
             <View style={styles.nfcInstructionsBox}>
               <Text style={styles.nfcInstructionsTitle}>Como usar</Text>
@@ -1150,10 +1151,13 @@ export function DashboardScreen() {
         onRequestClose={() => setChildModalVisible(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: spacing.md + Math.max(insets.bottom, spacing.sm) }]}>
             <Text style={styles.modalTitle}>{editingChildId ? 'Editar Criança' : 'Cadastrar Criança'}</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
               <Text style={styles.inputLabel}>Foto</Text>
               <TouchableOpacity style={styles.photoPickerButton} onPress={handlePickPhoto}>
                 {photoPreview ? (
@@ -1187,15 +1191,15 @@ export function DashboardScreen() {
                 style={styles.input}
               />
 
-              <Text style={styles.sectionTitle}>Responsaveis</Text>
+              <Text style={styles.sectionTitle}>Responsáveis</Text>
               {!canAddMoreGuardians && (
-                <Text style={styles.lockedHint}>Mais responsaveis? Disponivel no Plus/Premium</Text>
+                <Text style={styles.lockedHint}>Mais responsáveis? Disponível no Plus/Premium</Text>
               )}
 
               {formData.guardians.map((guardian, index) => (
                 <View key={`guardian-${index}`} style={styles.guardianCard}>
                   <View style={styles.guardianHeader}>
-                    <Text style={styles.guardianTitle}>Responsavel {index + 1}</Text>
+                    <Text style={styles.guardianTitle}>Responsável {index + 1}</Text>
                     {canAddMoreGuardians && index > 0 && (
                       <TouchableOpacity
                         onPress={() =>
@@ -1221,7 +1225,7 @@ export function DashboardScreen() {
                     )}
                   </View>
 
-                  <Text style={styles.inputLabel}>Responsavel</Text>
+                  <Text style={styles.inputLabel}>Responsável</Text>
                   <TextInput
                     value={guardian.name}
                     onChangeText={(value) =>
@@ -1232,7 +1236,7 @@ export function DashboardScreen() {
                         ),
                       }))
                     }
-                    placeholder="Nome do responsavel"
+                    placeholder="Nome do responsável"
                     style={styles.input}
                   />
 
@@ -1346,7 +1350,7 @@ export function DashboardScreen() {
                   }
                 >
                   <Ionicons name="add-circle-outline" size={18} color={colors.primary[600]} />
-                  <Text style={styles.addGuardianText}>Adicionar responsavel</Text>
+                  <Text style={styles.addGuardianText}>Adicionar responsável</Text>
                 </TouchableOpacity>
               )}
 
@@ -1356,7 +1360,7 @@ export function DashboardScreen() {
                 activeOpacity={0.8}
               >
                 <View>
-                  <Text style={styles.sectionTitle}>Informacoes Medicas</Text>
+                  <Text style={styles.sectionTitle}>Informações Medicas</Text>
                   {!canEditMedicalInfo && <Text style={styles.lockedHint}>Disponivel no Plus/Premium</Text>}
                 </View>
                 <Ionicons
@@ -1388,7 +1392,7 @@ export function DashboardScreen() {
                     </View>
                   </View>
 
-                  <Text style={styles.inputLabel}>Planos de saude</Text>
+                  <Text style={styles.inputLabel}>Planos de saúde</Text>
                   <TextInput
                     value={formData.healthPlans}
                     onChangeText={(value) => setFormData((prev) => ({ ...prev, healthPlans: value }))}
@@ -1397,11 +1401,11 @@ export function DashboardScreen() {
                     editable={canEditMedicalInfo}
                   />
 
-                  <Text style={styles.inputLabel}>Outras informacoes</Text>
+                  <Text style={styles.inputLabel}>Outras informações</Text>
                   <TextInput
                     value={formData.otherInfo}
                     onChangeText={(value) => setFormData((prev) => ({ ...prev, otherInfo: value }))}
-                    placeholder="Informacoes adicionais"
+                    placeholder="Informações adicionais"
                     style={[styles.input, styles.textArea]}
                     multiline
                     numberOfLines={4}
@@ -1787,6 +1791,9 @@ const styles = StyleSheet.create({
     color: colors.neutral.text.primary,
     marginBottom: spacing.md,
   },
+  modalScrollContent: {
+    paddingBottom: spacing.sm,
+  },
   nfcModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1795,7 +1802,7 @@ const styles = StyleSheet.create({
   nfcTargetText: {
     fontSize: 13,
     color: colors.neutral.text.secondary,
-    marginBottom: 2,
+    marginBottom: 10,
   },
   nfcTargetName: {
     fontWeight: '700',

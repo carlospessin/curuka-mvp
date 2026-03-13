@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { Alert, Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -43,6 +43,21 @@ ExpoNotifications.setNotificationHandler({
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+function StartupSplash() {
+  return (
+    <View style={styles.splashScreen}>
+      <View style={styles.splashCircle}>
+        <Image
+          source={require('./assets/splash-icon.png')}
+          style={styles.splashImage}
+          resizeMode="cover"
+        />
+      </View>
+      <Text>{process.env.EXPO_PUBLIC_VERSION}</Text>
+    </View>
+  );
+}
 
 function TabNavigator() {
   const insets = useSafeAreaInsets();
@@ -92,7 +107,7 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Inicio' }} />
-      <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: 'Historico' }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: 'Histórico' }} />
       <Tab.Screen name="Plans" component={PlansScreen} options={{ tabBarLabel: 'Planos' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Config' }} />
     </Tab.Navigator>
@@ -137,7 +152,9 @@ function AppShell({
     const authUserId = isAuthenticated ? getAuth().currentUser?.uid : null;
 
     if (!authUserId) return;
-    syncPushTokenForUser(authUserId, true);
+    syncPushTokenForUser(authUserId, true).catch((error) => {
+      console.warn('push token sync failed on app shell', error);
+    });
 
     // syncPushTokenForUser(authUserId || '', isAuthenticated && state.notificationsEnabled).catch((error) => {
     //   console.error('failed to sync push token', error);
@@ -222,6 +239,17 @@ export default function App() {
   });
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [minimumSplashElapsed, setMinimumSplashElapsed] = React.useState(false);
+  const [showSplashOverlay, setShowSplashOverlay] = React.useState(true);
+  const splashOpacity = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinimumSplashElapsed(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     const unsubscribe = watchAuthState((user: unknown) => {
@@ -232,24 +260,81 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  if (!fontsLoaded || isCheckingAuth) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.neutral.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-      </View>
-    );
-  }
+  const appReady = fontsLoaded && !isCheckingAuth && minimumSplashElapsed;
+
+  React.useEffect(() => {
+    if (!appReady || !showSplashOverlay) return;
+
+    const animation = Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    });
+
+    animation.start(({ finished }) => {
+      if (finished) {
+        setShowSplashOverlay(false);
+      }
+    });
+
+    return () => animation.stop();
+  }, [appReady, showSplashOverlay, splashOpacity]);
 
   return (
-    <AppProvider>
-      <AppShell isAuthenticated={isAuthenticated} />
-    </AppProvider>
+    <View style={styles.appRoot}>
+      {appReady ? (
+        <AppProvider>
+          <AppShell isAuthenticated={isAuthenticated} />
+        </AppProvider>
+      ) : (
+        <View style={styles.appBackground} />
+      )}
+      {showSplashOverlay && (
+        <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]}>
+          <StartupSplash />
+        </Animated.View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  appRoot: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
+  appBackground: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  splashScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral.background,
+    paddingHorizontal: 24,
+  },
+  splashCircle: {
+    width: 176,
+    height: 176,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  splashImage: {
+    width: '100%',
+    height: '100%',
+  },
+  splashTitle: {
+    marginTop: 24,
+    fontSize: 24,
+    lineHeight: 32,
+    textAlign: 'center',
+    color: colors.primary[800],
+    fontWeight: '800',
+    maxWidth: 280,
+  },
+});

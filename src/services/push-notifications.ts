@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as ExpoNotifications from 'expo-notifications';
+import { getApps as getNativeFirebaseApps } from '@react-native-firebase/app';
 import { getMessaging, getToken, requestPermission, AuthorizationStatus } from '@react-native-firebase/messaging';
 import { removePushToken, savePushToken } from './pessoa-service.js';
 
@@ -9,10 +10,28 @@ export { ExpoNotifications as Notifications };
 
 const STORED_PUSH_TOKEN_KEY = 'curuka_push_token';
 const STORED_PUSH_OWNER_KEY = 'curuka_push_owner';
+let hasLoggedMissingNativeFirebaseApp = false;
+
+function hasNativeFirebaseMessagingSupport() {
+  if (Platform.OS === 'web') return false;
+
+  try {
+    return getNativeFirebaseApps().length > 0;
+  } catch {
+    return false;
+  }
+}
 
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'web') return null;
   if (!Device.isDevice) throw new Error('Push notifications exigem um dispositivo fisico.');
+  if (!hasNativeFirebaseMessagingSupport()) {
+    if (!hasLoggedMissingNativeFirebaseApp) {
+      hasLoggedMissingNativeFirebaseApp = true;
+      console.warn('[push] Firebase Messaging indisponivel: app nativo do Firebase nao inicializado.');
+    }
+    return null;
+  }
 
   const messaging = getMessaging();
 
@@ -39,6 +58,10 @@ export async function syncPushTokenForUser(ownerId: string, enabled: boolean) {
       await removePushToken(previousOwnerId, previousToken);
     }
     await AsyncStorage.multiRemove([STORED_PUSH_TOKEN_KEY, STORED_PUSH_OWNER_KEY]);
+    return null;
+  }
+
+  if (!hasNativeFirebaseMessagingSupport()) {
     return null;
   }
 

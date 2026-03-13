@@ -18,6 +18,8 @@ export function Footer() {
             <TouchableOpacity onPress={openGithub}>
                 <Text style={styles.dev}>Desenvolvido por PX3</Text>
             </TouchableOpacity>
+
+            <Text style={styles.beta}>{process.env.EXPO_PUBLIC_VERSION}</Text>
         </View>
     );
 }
@@ -41,6 +43,12 @@ const styles = StyleSheet.create({
     dev: {
         fontSize: 10,
         color: colors.primary[600],
+        marginTop: 4,
+        fontWeight: '600',
+    },
+    beta: {
+        fontSize: 10,
+        color: colors.grayMedium,
         marginTop: 4,
         fontWeight: '600',
     },

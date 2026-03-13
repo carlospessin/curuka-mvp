@@ -53,7 +53,7 @@ export async function createPessoa(userId, pessoaData, fotoFile) {
   const baseData = {
     nome: pessoaData.nome,
     telefone: pessoaData.telefone,
-    responsavel: pessoaData.responsavel,
+    responsável: pessoaData.responsável,
     info: pessoaData.info,
     foto: null,
     ownerId: userId,
